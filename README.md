@@ -178,7 +178,9 @@ Repository contents may change as data collection, cleaning, analysis, and manus
 For questions about the study, collaboration, or use of materials in this repository, contact:
 
 Name: Sabina Rodriguez
+
 Institution: Institute of Global Health, University of Geneva
+
 Email: sabina.rodriguez@unige.ch
 
 ## Disclaimer
