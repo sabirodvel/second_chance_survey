@@ -1,0 +1,59 @@
+---
+title: "Data Visualization for 2nd Chance Survey"
+author: "Sabina Rodriguez"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    toc: yes
+    toc_float: yes
+editor_options: 
+  chunk_output_type: inline
+  markdown: 
+    wrap: none
+---
+
+```{r global_chunk options, include = F}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+```{r initial_setup}
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(here,
+               tidyverse, 
+               janitor, 
+               lubridate, 
+               stringr, 
+               gt, 
+               readxl, 
+               purrr, 
+               writexl, 
+               digest
+               )
+```
+
+```{r dataset_load, include = F}
+# Data
+df <- read_csv(here("data/clean_data_20261005.csv"))
+
+```
+
+```{r source_code, include = F}
+# Load source code
+source(here("scripts/"))
+
+```
+
+# Participant Characteristics
+
+## Age and Gender
+
+## Country of practice
+
+## Qualification
+
+## Accreditation
+
+## Position
+
+## Subspecialty

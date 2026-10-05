@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 08/31/2026
+## Updated: 10/05/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -21,7 +21,7 @@ pacman::p_load(tidyverse, janitor, lubridate, here, stringr, gt, readxl, purrr,
 # Load CSV data
 
 ## raw data (only one version)
-raw_data <- read_csv2(here("data/raw/prs_survey_data_PILOT.csv"))
+raw_data <- read_csv2(here("data/raw/prs_survey_data_20260510.csv"))
 
 ## raw data (all versions including more than one facility data)
 # TBA
@@ -62,13 +62,15 @@ anonymous_data <- raw_data %>%
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Drop columns not used or just info
 clean_data <- anonymous_data %>% 
-  select(!c(2:9, #id
-            17, #thank you note
-            167:178 #id end
+  select(!c(
+    logos_note,info_intro, info_contact, consent_header, consent_declined, #NA
+            thank_you_for_your_i_s_study_at_this_time, #thank you note
+            starts_with("note_"),
+            167:176 #id
             ))
 
 # Drop binary columns (repeat)
-# clean_data_1 <- clean_data %>% 
+# clean_data_1 <- clean_data %>%
 #   select(!c(country_currently_angola:country_currently_zimbabwe, #country
 #             subspecialty_burns:subspecialty_general_reconstructive, #subspecialty
 #             workload_categories_burns:workload_categories_aesthetic)) #workload
@@ -85,4 +87,10 @@ clean_data_2 <- clean_data %>%
     )
   )
 
-
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Filter for weeding questions ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+consent_ssa <- clean_data_2 %>% 
+  filter(consent == "yes", # Consent to study
+         practicing_ssa == "yes",
+         country_practice != "Switzerland") # practice in SSA
