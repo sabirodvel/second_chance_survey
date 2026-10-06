@@ -94,3 +94,26 @@ consent_ssa <- clean_data_2 %>%
   filter(consent == "yes", # Consent to study
          practicing_ssa == "yes",
          country_practice != "Switzerland") # practice in SSA
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Clean categorical variables ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Clean the categorical variables
+clean_cv_data <- consent_ssa %>% # Clean age group
+  mutate(
+    age_group = case_when(
+      age_group == "lt30" ~ "<30",
+      age_group == "30_39" ~ "30-39",
+      age_group == "40_49" ~ "40-49",
+      age_group == "50_59" ~ "50-59",
+      age_group == "gte60" ~ ">=60"
+    ),
+    # Calculate years accredited ~ years in practice
+    year_prs_accredited = 2026 - accreditation_year 
+  )
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Save clean dataset ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Save dataset
+write_csv(clean_cv_data, "data/clean_data_20261005.csv")

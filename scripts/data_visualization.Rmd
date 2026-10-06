@@ -33,7 +33,7 @@ pacman::p_load(here,
 ```
 
 ```{r dataset_load, include = F}
-# Data
+# Load data (consent and ssa)
 df <- read_csv(here("data/clean_data_20261005.csv"))
 
 ```
@@ -47,6 +47,50 @@ source(here("scripts/"))
 # Participant Characteristics
 
 ## Age and Gender
+
+### Age distribution
+
+```{r age_group, include = F}
+# Count age group and arrange
+df <- df %>% 
+  mutate(
+    age_group = factor(
+      age_group,
+      levels = c("<30", "30-39", "40-49", "50-59", ">=60")
+    )
+  )
+
+# Calculate age groups
+age_group_bar <- df %>% 
+  count(age_group) %>% 
+  ggplot(aes(
+    x = age_group,
+    y = n,
+    fill = age_group
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_brewer(palette = "YlOrRd") +
+  labs(
+    title = "Distribution of Age Groups",
+    x = "Age Group",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+age_group_bar
+```
+
 
 ## Country of practice
 
