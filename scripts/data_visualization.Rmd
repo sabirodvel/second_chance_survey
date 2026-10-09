@@ -13,7 +13,7 @@ editor_options:
     wrap: none
 ---
 
-```{r global_chunk options, include = F}
+```{r global_chunk options, echo=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
 
@@ -91,10 +91,97 @@ age_group_bar <- df %>%
 age_group_bar
 ```
 
+### Gender Distribution
+
+```{r gender include=F}
+# Count age group and arrange
+df <- df %>% 
+  mutate(
+    gender = factor(
+      gender,
+      levels = c("male", "female"),
+       labels = c("Male", "Female")
+    )
+  )
+
+# Calculate age groups
+gender_bar <- df %>% 
+  count(gender) %>% 
+  ggplot(aes(
+    x = gender,
+    y = n,
+    fill = gender
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_brewer(palette = "YlOrRd") +
+  labs(
+    title = "Distribution of Gender",
+    x = "Gender",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+gender_bar
+```
 
 ## Country of practice
 
 ## Qualification
+
+```{r qualification include=F}
+# Count qualification and arrange
+df <- df %>% 
+  mutate(
+    qualification = factor(
+      qualification,
+      levels = c("doctoral_degree", "surgical_fellowship", "masters_surgery", "surgical_membership", "primary_medical_degree"),
+      labels = c("Doctoral/research degree", "Fellowship", "Master’s degree in Surgery", "Membership qualification", "Primary medical degree")
+    )
+  )
+
+# Calculate age groups
+qualification_bar <- df %>% 
+  count(qualification) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(qualification, -n),
+    y = n,
+    fill = qualification
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_brewer(palette = "YlOrRd") +
+  labs(
+    title = "Distribution of Qualification",
+    x = "Qualification",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+qualification_bar
+```
 
 ## Accreditation
 
