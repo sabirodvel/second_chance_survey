@@ -99,8 +99,10 @@ consent_ssa <- clean_data_2 %>%
 ## Clean categorical variables ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Clean the categorical variables
-clean_cv_data <- consent_ssa %>% # Clean age group
+clean_cv_data <- consent_ssa %>% 
   mutate(
+    
+    # Clean age group
     age_group = case_when(
       age_group == "lt30" ~ "<30",
       age_group == "30_39" ~ "30-39",
@@ -108,9 +110,43 @@ clean_cv_data <- consent_ssa %>% # Clean age group
       age_group == "50_59" ~ "50-59",
       age_group == "gte60" ~ ">=60"
     ),
+    
     # Calculate years accredited ~ years in practice
-    year_prs_accredited = 2026 - accreditation_year 
+    year_prs_accredited = 2026 - accreditation_year ,
+    
+    # Standarize country practice
+    country_practice = str_trim(str_to_lower(country_practice)),
+    country_practice = case_when(
+      country_practice == "côte d’ivoire" ~ "cote_divoire",
+      country_practice %in% c("drc", "dr congo") ~
+        "democratic_republic_of_the_congo",
+      TRUE ~ country_practice
+    )
+)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Country of practice ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Extract unique countries from each column
+clean_country_practice <- clean_cv_data %>% 
+  separate_rows(country_currently, sep = ";") %>% 
+  mutate(country_currently = str_trim(country_currently))
+
+# Country of practice vs country currently practicing
+unique(clean_cv_data$country_practice)
+unique(clean_country_practice$country_currently)
+
+# Countries in country_practice but NOT in country_currently
+setdiff(
+  unique(clean_cv_data$country_practice),
+  unique(clean_country_practice$country_currently)
   )
+  
+# Countries in country_currently but NOT in country_practice
+setdiff(
+  unique(clean_country_practice$country_currently),
+  unique(clean_cv_data$country_practice)
+)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----

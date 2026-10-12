@@ -28,7 +28,11 @@ pacman::p_load(here,
                readxl, 
                purrr, 
                writexl, 
-               digest
+               digest,
+               sf,
+               countrycode,
+               rnaturalearth,
+               rnaturalearthdata
                )
 ```
 
@@ -136,6 +140,149 @@ gender_bar
 ```
 
 ## Country of practice
+
+### Prep country data
+
+```{r prep_country_practice include=F}
+# View the countries
+unique(df$country_currently)
+unique(df$country_practice)
+
+# Build a vector of valid country names using the countrycode package
+valid_countries <- unique(countrycode::codelist$country.name.en)  # Standard country name
+
+# Count respondents by country
+country_counts <- clean_country_practice %>% 
+  mutate(
+    iso_a3 = case_when(
+      country_currently == "cote_divoire" ~ "CIV",
+      country_currently == "democratic_republic_of_the_congo" ~ "COD",
+      TRUE ~ countrycode(
+        str_replace_all(country_currently, "_", " "),
+        origin = "country.name",
+        destination = "iso3c"
+      )
+    )
+  ) %>%
+  filter(!is.na(iso_a3)) %>%
+  count(country_currently, iso_a3, name = "country_count") %>%
+  arrange(desc(country_count))
+
+# Retrieve African country boundaries
+africa <- ne_countries(
+  continent = "Africa",
+  scale = "medium",
+  returnclass = "sf"
+)
+
+# Join survey counts to map
+africa_data <- africa %>%
+  left_join(
+    country_counts,
+    by = c("adm0_a3" = "iso_a3")
+  )
+
+```
+
+### Create Top 5 Countries Barplot
+
+```{r coutry_plot include=F}
+# Calculate total number of country counts
+total_n <- sum(country_counts$country_count, na.rm = TRUE)
+
+# Create the count table 
+bar_df_top5 <- country_counts %>%
+  arrange(desc(country_count), iso_a3) %>%
+  slice_head(n = 5) %>%
+  mutate(
+    percentage  = 100 * country_count / total_n,
+    pct_label   = sprintf("%.1f%%", percentage),
+    # choose label color based on how dark the bar will be
+    label_color = if_else(percentage >= 12, "white", "black")  # tweak threshold if needed
+  )
+
+barplot_choro <- bar_df_top5 %>%
+  ggplot(aes(
+    x = reorder(country_currently, percentage),
+    y = percentage, fill = percentage)) +
+  geom_col(width = 0.8) +
+  # place text just inside the right edge; color varies by bar brightness
+  geom_text(aes(label = pct_label, color = label_color),
+            hjust = 0.98, vjust = 0.5, size = 3.2, fontface = "bold") +
+  scale_fill_gradientn(colors = RColorBrewer::brewer.pal(9, "YlOrRd")) +
+  scale_color_identity() +  # use the colors already in the data
+  scale_x_discrete(
+  labels = stringr::str_to_title) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.02))) +
+  labs(title = "Top 5 Contributors to Total PRS") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks  = element_blank(),
+    axis.title  = element_blank(),
+    legend.position = "none",
+    panel.grid  = element_blank(),
+    plot.title.position = "plot",                 # <-- anchor to plot left edge
+    plot.title = element_text(size = 12, face = "bold", hjust = 0, margin = margin(b = 6))
+  )
+
+```
+
+### Create Choropleth
+
+```{r choropleth include=F}
+# Plot Africa choropleth
+africa_map <- ggplot() +
+  # All African countries: white by default
+  geom_sf(
+    data = africa,
+    fill = "white",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Countries with survey data only
+  geom_sf(
+    data = africa_data %>% filter(!is.na(country_count)),
+    aes(fill = country_count),
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Northern Africa: excluded from the study
+  geom_sf(
+    data = africa %>% filter(subregion == "Northern Africa"),
+    fill = "grey85",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1,
+    name = "PRS Count",
+    breaks = c(1,5,9,13),
+    limits = c(1,13)
+  ) +
+  labs(
+    title = "Geographic Distribution of Plastic Surgeons",
+    subtitle = "Countries outside SSA are shown in gray"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+
+africa_map
+```
+
+### Combine Barplot & Choropleth
+
+```{r combine_barpleth include=F}
+
+```
 
 ## Qualification
 
