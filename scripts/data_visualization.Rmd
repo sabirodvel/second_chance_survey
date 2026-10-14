@@ -32,14 +32,14 @@ pacman::p_load(here,
                sf,
                countrycode,
                rnaturalearth,
-               rnaturalearthdata
+               rnaturalearthdata,
+               patchwork
                )
 ```
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
 df <- read_csv(here("data/clean_data_20261005.csv"))
-
 ```
 
 ```{r source_code, include = F}
@@ -145,8 +145,8 @@ gender_bar
 
 ```{r prep_country_practice include=F}
 # View the countries
-unique(df$country_currently)
-unique(df$country_practice)
+# unique(df$country_currently)
+# unique(df$country_practice)
 
 # Build a vector of valid country names using the countrycode package
 valid_countries <- unique(countrycode::codelist$country.name.en)  # Standard country name
@@ -227,6 +227,7 @@ barplot_choro <- bar_df_top5 %>%
     plot.title = element_text(size = 12, face = "bold", hjust = 0, margin = margin(b = 6))
   )
 
+barplot_choro
 ```
 
 ### Create Choropleth
@@ -281,7 +282,33 @@ africa_map
 ### Combine Barplot & Choropleth
 
 ```{r combine_barpleth include=F}
+# Combine both barplot with choropleth
+combined_choro_bar <-
+  africa_map +
+  inset_element(barplot_choro,
+                left = 0.01,
+                bottom = 0.10,
+                right = 0.50,
+                top = 0.52)
 
+print(combined_choro_bar)
+
+ggsave(filename = here("images/combined_map_bar.png"),
+       plot = combined_choro_bar,
+       height = 10,
+       width = 13,
+       units = "in")
+
+# ggsave(
+#   filename = here::here("images/combined_choro_bar.eps"),
+#   plot = combined_choro_bar,
+#   height = 10,
+#   width = 13,
+#   units = "in",
+#   dpi = 300,
+#   bg = "white",
+#   device = "eps"
+# )
 ```
 
 ## Qualification
