@@ -33,7 +33,8 @@ pacman::p_load(here,
                countrycode,
                rnaturalearth,
                rnaturalearthdata,
-               patchwork
+               patchwork,
+               purrr
                )
 ```
 
@@ -44,8 +45,7 @@ df <- read_csv(here("data/clean_data_20261005.csv"))
 
 ```{r source_code, include = F}
 # Load source code
-source(here("scripts/"))
-
+source(here("scripts/data_cleaning.R"))
 ```
 
 # Participant Characteristics
@@ -55,22 +55,13 @@ source(here("scripts/"))
 ### Age distribution
 
 ```{r age_group, include = F}
-# Count age group and arrange
-df <- df %>% 
-  mutate(
-    age_group = factor(
-      age_group,
-      levels = c("<30", "30-39", "40-49", "50-59", ">=60")
-    )
-  )
-
 # Calculate age groups
 age_group_bar <- df %>% 
   count(age_group) %>% 
   ggplot(aes(
     x = age_group,
     y = n,
-    fill = age_group
+    fill = n
   )) +
   geom_col() +
   geom_text(
@@ -78,7 +69,8 @@ age_group_bar <- df %>%
     vjust = 1.5,
     size = 3
   ) +
-  scale_fill_brewer(palette = "YlOrRd") +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
   labs(
     title = "Distribution of Age Groups",
     x = "Age Group",
@@ -98,23 +90,13 @@ age_group_bar
 ### Gender Distribution
 
 ```{r gender include=F}
-# Count age group and arrange
-df <- df %>% 
-  mutate(
-    gender = factor(
-      gender,
-      levels = c("male", "female"),
-       labels = c("Male", "Female")
-    )
-  )
-
 # Calculate age groups
 gender_bar <- df %>% 
   count(gender) %>% 
   ggplot(aes(
     x = gender,
     y = n,
-    fill = gender
+    fill = n
   )) +
   geom_col() +
   geom_text(
@@ -122,7 +104,8 @@ gender_bar <- df %>%
     vjust = 1.5,
     size = 3
   ) +
-  scale_fill_brewer(palette = "YlOrRd") +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
   labs(
     title = "Distribution of Gender",
     x = "Gender",
@@ -293,11 +276,11 @@ combined_choro_bar <-
 
 print(combined_choro_bar)
 
-ggsave(filename = here("images/combined_map_bar.png"),
-       plot = combined_choro_bar,
-       height = 10,
-       width = 13,
-       units = "in")
+# ggsave(filename = here("images/combined_map_bar.png"),
+#        plot = combined_choro_bar,
+#        height = 10,
+#        width = 13,
+#        units = "in")
 
 # ggsave(
 #   filename = here::here("images/combined_choro_bar.eps"),
@@ -314,16 +297,6 @@ ggsave(filename = here("images/combined_map_bar.png"),
 ## Qualification
 
 ```{r qualification include=F}
-# Count qualification and arrange
-df <- df %>% 
-  mutate(
-    qualification = factor(
-      qualification,
-      levels = c("doctoral_degree", "surgical_fellowship", "masters_surgery", "surgical_membership", "primary_medical_degree"),
-      labels = c("Doctoral/research degree", "Fellowship", "Master’s degree in Surgery", "Membership qualification", "Primary medical degree")
-    )
-  )
-
 # Calculate age groups
 qualification_bar <- df %>% 
   count(qualification) %>% 
@@ -331,7 +304,7 @@ qualification_bar <- df %>%
   ggplot(aes(
     x = reorder(qualification, -n),
     y = n,
-    fill = qualification
+    fill = n
   )) +
   geom_col() +
   geom_text(
@@ -339,7 +312,8 @@ qualification_bar <- df %>%
     vjust = 1.5,
     size = 3
   ) +
-  scale_fill_brewer(palette = "YlOrRd") +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
   labs(
     title = "Distribution of Qualification",
     x = "Qualification",
@@ -359,6 +333,102 @@ qualification_bar
 
 ## Accreditation
 
+```{r accreditation_barplot include=F}
+
+
+```
+
+
 ## Position
 
+
+
 ## Subspecialty
+
+
+# Characteristics by Country
+
+```{r barplot_function include=F}
+
+# Reusable bar plot function
+create_barplot <- function(data, variable, title) {
+  
+  data %>% 
+    count({{variable}}) %>% 
+    ggplot(aes(
+      x = {{variable}},
+      y = n,
+      fill = n
+    )) + 
+    geom_col() +
+    geom_text(
+      aes(label = paste0("n = ", n)),
+      vjust = 1.5,
+      size = 3
+      ) +
+    scale_fill_distiller(
+      palette = "YlOrRd",
+      direction = 1
+    ) +
+    labs(
+      title = title, 
+      x = NULL, 
+      y = "Number of Surgeons"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      legend.position = "none",
+      panel.grid = element_blank()
+    )
+}
+
+```
+
+```{r get_country_list include=F}
+# Create country list to use in function
+
+# Get unique countries
+countries <- unique(na.omit(df$country_currently))
+
+# Create a list to store plots
+country_plots <- list()
+
+for (country_name in countries) {
+
+  # Filter data for country
+  country_df <- df %>%
+    filter(country_currently == country_name)
+
+  # Create age group plot
+  age_plot <- create_barplot(
+    country_df,
+    age_group,
+    paste("Age Distribution -", country_name)
+  )
+
+  # Create gender plot
+  gender_plot <- create_barplot(
+    country_df,
+    gender,
+    paste("Gender Distribution -", country_name)
+  )
+  
+  # Create qualification plot
+  qualification_plot <- create_barplot(
+    country_df,
+    qualification,
+    paste("Qualification Distribution -", country_name)
+  )
+
+  # Store plots
+  country_plots[[country_name]] <- list(
+    age = age_plot,
+    gender = gender_plot,
+    qualification = qualification_plot
+  )
+}
+
+```
+

@@ -124,6 +124,31 @@ clean_cv_data <- consent_ssa %>%
     )
 )
 
+# Create factors for categorical variables
+clean_cv_data <- clean_cv_data %>% 
+  mutate(
+    # Factorize age_group
+    age_group = factor(
+      age_group,
+      levels = c("<30", "30-39", "40-49", "50-59", ">=60")),
+    # Factorize gender
+    gender = factor(
+      gender,
+      levels = c("male", "female"),
+      labels = c("Male", "Female")),
+    # Factorize qualification
+    qualification = factor(
+      qualification,
+      levels = c("doctoral_degree", "surgical_fellowship", "masters_surgery", 
+                 "surgical_membership", "primary_medical_degree"),
+      labels = c("Doctoral/research degree", "Fellowship", "Master’s degree in Surgery", 
+                 "Membership qualification", "Primary medical degree"))
+  )
+
+# Create factors
+df <- df %>% 
+  mutate(
+    
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Country of practice ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,24 +157,24 @@ clean_country_practice <- clean_cv_data %>%
   separate_rows(country_currently, sep = ";") %>% 
   mutate(country_currently = str_trim(country_currently))
 
-# Country of practice vs country currently practicing
-unique(clean_cv_data$country_practice)
-unique(clean_country_practice$country_currently)
-
-# Countries in country_practice but NOT in country_currently
-setdiff(
-  unique(clean_cv_data$country_practice),
-  unique(clean_country_practice$country_currently)
-  )
-  
-# Countries in country_currently but NOT in country_practice
-setdiff(
-  unique(clean_country_practice$country_currently),
-  unique(clean_cv_data$country_practice)
-)
+# # Country of practice vs country currently practicing
+# unique(clean_cv_data$country_practice)
+# unique(clean_country_practice$country_currently)
+# 
+# # Countries in country_practice but NOT in country_currently
+# setdiff(
+#   unique(clean_cv_data$country_practice),
+#   unique(clean_country_practice$country_currently)
+#   )
+#   
+# # Countries in country_currently but NOT in country_practice
+# setdiff(
+#   unique(clean_country_practice$country_currently),
+#   unique(clean_cv_data$country_practice)
+# )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
-write_csv(clean_cv_data, "data/clean_data_20261005.csv")
+# write_csv(clean_cv_data, "data/clean_data_20261005.csv")
