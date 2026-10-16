@@ -40,7 +40,7 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_csv(here("data/clean_data_20261005.csv"))
+df <- read_csv(here("data/clean_data_20261016.csv"))
 ```
 
 ```{r source_code, include = F}
@@ -297,7 +297,7 @@ print(combined_choro_bar)
 ## Qualification
 
 ```{r qualification include=F}
-# Calculate age groups
+# Calculate qualification
 qualification_bar <- df %>% 
   count(qualification) %>% 
 # Graph the plot  
@@ -334,16 +334,196 @@ qualification_bar
 ## Accreditation
 
 ```{r accreditation_barplot include=F}
+# Calculate accreditation
+accreditation_bar <- df %>% 
+  count(accreditation_body) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(accreditation_body, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Accreditation",
+    x = "Accreditation",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
 
-
+accreditation_bar
 ```
 
 
 ## Position
 
+```{r position_barplot include=F}
+# Calculate position
+position_bar <- df %>% 
+  count(position) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(position, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Position",
+    x = "Position",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+position_bar
+```
 
 
 ## Subspecialty
+
+```{r clean_subspecialty include=F}
+# Factorize subspecialty
+clean_subspecialty <- clean_subspecialty %>% 
+  mutate(
+    subspecialty = factor(
+      subspecialty,
+      levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
+                 "aesthetic", "pediatric", "oncoplastic", "general_reconstructive",
+                 "other"),
+      labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
+                 "Trauma reconstruction", "Aesthetic plastic surgery", 
+                 "Pediatric plastic surgery", "Oncoplastic/reconstructive surgery",
+                 "General reconstructive surgery", "Other"))
+  )
+
+```
+
+```{r subspeciality_barplot include=F}
+# Calculate Subspecialty
+subspecialty_bar <- clean_subspecialty %>% 
+  count(subspecialty) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(subspecialty, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Subspecialty",
+    x = "Subspecialty",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = ),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+subspecialty_bar
+```
+
+## Years in Practice
+
+### Histogram
+
+```{r yrs_practice include=F}
+# Create histogram of years in practice
+yrs_practice <- df %>%
+  filter(!is.na(year_prs_accredited),
+         year_prs_accredited <50) %>% 
+  ggplot(aes(
+    x = year_prs_accredited,
+    fill = after_stat(count)
+    )) +
+  geom_histogram(
+    binwidth = 5,
+    boundary = 0,
+    color = "white"
+  ) +
+  geom_text(
+    stat = "bin",
+    binwidth = 5,
+    boundary = 0,
+    aes(label = paste0("n = ", after_stat(count))),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Years in Practice",
+    x = "Years in Practice",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(size = 10),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+yrs_practice
+```
+### Summary Stats
+
+```{r yrs_practice_stats include=F}
+# Calcultate summary stats
+yrs_practice_stats <- df %>% 
+ summarise(
+    n = sum(!is.na(x = year_prs_accredited)),
+    mean = mean(year_prs_accredited, na.rm = TRUE),
+    sd = sd(year_prs_accredited, na.rm = TRUE),
+    median = median(year_prs_accredited, na.rm = TRUE),
+    q1 = quantile(year_prs_accredited, 0.25, na.rm = TRUE),
+    q3 = quantile(year_prs_accredited, 0.75, na.rm = TRUE),
+    min = min(year_prs_accredited, na.rm = TRUE),
+    max = max(year_prs_accredited, na.rm = TRUE)
+  )
+
+```
 
 
 # Characteristics by Country

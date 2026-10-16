@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 10/05/2026
+## Updated: 10/16/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -30,11 +30,15 @@ raw_data <- read_csv2(here("data/raw/prs_survey_data_20260510.csv"))
 raw_data <- clean_names(raw_data)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Deidentify emails ----
+## ID & Deidentify emails ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 anonymous_data <- raw_data %>%
   mutate(
+    
+    # Assign a unique ID to each row
+    id = row_number(),
+    
     # Normalize email so capitalization/extra spaces do not affect matching
     email_normalized = email %>%
       str_trim() %>%
@@ -75,25 +79,51 @@ clean_data <- anonymous_data %>%
 #             subspecialty_burns:subspecialty_general_reconstructive, #subspecialty
 #             workload_categories_burns:workload_categories_aesthetic)) #workload
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Separate multiple answers with ; ----
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function to replace spaces with ;
-clean_data_2 <- clean_data %>% 
+clean_data_2 <- clean_data %>%
   mutate(
     across(
       c(country_currently, subspecialty, workload_categories),
       ~ str_replace_all(.x, " ", ";")
+    ),
+    
+    # Standardize country names
+    country_practice = case_when(
+      str_to_lower(str_squish(country_practice)) %in%
+        c("drc", "dr congo") ~ "Democratic Republic of the Congo",
+      
+      str_to_lower(str_squish(country_practice)) %in%
+        c("côte d’ivoire", "côte d'ivoire") ~ "Côte d'Ivoire",
+      
+      TRUE ~ str_to_title(str_squish(country_practice))
     )
   )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Filter for weeding questions ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-consent_ssa <- clean_data_2 %>% 
-  filter(consent == "yes", # Consent to study
-         practicing_ssa == "yes",
-         country_practice != "Switzerland") # practice in SSA
+# Define countries in Sub-Saharan Africa
+ssa_countries <- c(
+  "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi",
+  "Cabo Verde", "Cameroon", "Central African Republic", "Chad",
+  "Comoros", "Congo", "Democratic Republic of the Congo",
+  "Côte d'Ivoire", "Djibouti", "Equatorial Guinea", "Eritrea",
+  "Eswatini", "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea",
+  "Guinea-Bissau", "Kenya", "Lesotho", "Liberia", "Madagascar",
+  "Malawi", "Mali", "Mauritania", "Mauritius", "Mozambique",
+  "Namibia", "Niger", "Nigeria", "Rwanda", "São Tomé and Príncipe",
+  "Senegal", "Seychelles", "Sierra Leone", "Somalia",
+  "South Africa", "South Sudan", "Sudan", "Tanzania", "Togo",
+  "Uganda", "Zambia", "Zimbabwe"
+)
+
+# Filter eligible participants
+consent_ssa <- clean_data_2 %>%
+  filter(
+    consent == "yes",
+    practicing_ssa == "yes",
+    country_practice %in% ssa_countries
+  )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Clean categorical variables ----
@@ -142,13 +172,21 @@ clean_cv_data <- clean_cv_data %>%
       levels = c("doctoral_degree", "surgical_fellowship", "masters_surgery", 
                  "surgical_membership", "primary_medical_degree"),
       labels = c("Doctoral/research degree", "Fellowship", "Master’s degree in Surgery", 
-                 "Membership qualification", "Primary medical degree"))
-  )
+                 "Membership qualification", "Primary medical degree")),
+    # Factorize accreditation
+    accreditation_body = factor(
+      accreditation_body,
+      levels = c("international", "cosecsa", "wacs", "national", "other"),
+      labels = c("International training program", "COSECSA",
+                 "WACS","National training program", "Other")),
+    # Factorize position
+    position = factor(
+      position,
+      levels = c("academic_faculty", "dept_head", "consultant", "resident", "fellow"),
+      labels = c("Academic faculty", "Department head/chair", "Consultant/Attending surgeon",
+                 "Resident/Trainee", "Fellow"))
+)
 
-# Create factors
-df <- df %>% 
-  mutate(
-    
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Country of practice ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -157,24 +195,16 @@ clean_country_practice <- clean_cv_data %>%
   separate_rows(country_currently, sep = ";") %>% 
   mutate(country_currently = str_trim(country_currently))
 
-# # Country of practice vs country currently practicing
-# unique(clean_cv_data$country_practice)
-# unique(clean_country_practice$country_currently)
-# 
-# # Countries in country_practice but NOT in country_currently
-# setdiff(
-#   unique(clean_cv_data$country_practice),
-#   unique(clean_country_practice$country_currently)
-#   )
-#   
-# # Countries in country_currently but NOT in country_practice
-# setdiff(
-#   unique(clean_country_practice$country_currently),
-#   unique(clean_cv_data$country_practice)
-# )
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Subspecialty ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Extract unique subspecialties from each answer
+clean_subspecialty <- clean_cv_data %>% 
+  separate_rows(subspecialty, sep = ";") %>% 
+  mutate(subspecialty = str_trim(subspecialty))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
-# write_csv(clean_cv_data, "data/clean_data_20261005.csv")
+# write_csv(clean_cv_data, "data/clean_data_20261016.csv")
