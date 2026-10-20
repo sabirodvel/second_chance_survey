@@ -525,6 +525,49 @@ yrs_practice_stats <- df %>%
 
 ```
 
+```{r box-whisker_plot include=F}
+# Create boxplot of years in practice
+yrs_practice_boxplot <- df %>%
+  filter(
+    !is.na(year_prs_accredited)) %>%
+  ggplot(aes(
+    x = "",
+    y = year_prs_accredited
+  )) +
+  geom_boxplot(
+    fill = "#FD8D3C",       # Orange from YlOrRd palette
+    color = "black",
+    width = 0.3,
+    linewidth = 0.6,
+    outlier.color = "#BD0026",
+    outlier.size = 2
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    shape = 18,
+    size = 3,
+    color = "#BD0026"
+  ) +
+  labs(
+    title = "Distribution of Years in Practice",
+    x = NULL,
+    y = "Years in Practice"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+yrs_practice_boxplot
+
+```
+
 
 # Characteristics by Country
 
