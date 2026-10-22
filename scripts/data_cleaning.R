@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 10/16/2026
+## Updated: 10/22/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -141,6 +141,14 @@ clean_cv_data <- consent_ssa %>%
       age_group == "gte60" ~ ">=60"
     ),
     
+    # Clean other from accreditation
+    accreditation_body = case_when(
+      accreditation_body == "other" & accreditation_other %in% c(
+        "CAMES",
+        "FRCSCanada") ~ "international", 
+      TRUE ~ as.character(accreditation_body)
+    ),
+    
     # Calculate years accredited ~ years in practice
     year_prs_accredited = 2026 - accreditation_year ,
     
@@ -207,4 +215,4 @@ clean_subspecialty <- clean_cv_data %>%
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
-# write_csv(clean_cv_data, "data/clean_data_20261016.csv")
+#write_csv(clean_cv_data, "data/clean_data_20261022.csv")

@@ -40,7 +40,7 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_csv(here("data/clean_data_20261016.csv"))
+df <- read_csv(here("data/clean_data_20261022.csv"))
 ```
 
 ```{r source_code, include = F}
@@ -406,13 +406,18 @@ position_bar <- df %>%
 position_bar
 ```
 
-
 ## Subspecialty
 
-```{r clean_subspecialty include=F}
+```{r factorize_subspecialty include=F}
 # Factorize subspecialty
 clean_subspecialty <- clean_subspecialty %>% 
   mutate(
+    # Clean other
+    subspecialty = case_when(
+      subspecialty == "other" & subspecialty_other == 1 ~ 
+        "general_reconstructive",
+      TRUE ~ subspecialty),
+    # Factorize subspecialties
     subspecialty = factor(
       subspecialty,
       levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
@@ -420,7 +425,7 @@ clean_subspecialty <- clean_subspecialty %>%
                  "other"),
       labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
                  "Trauma reconstruction", "Aesthetic plastic surgery", 
-                 "Pediatric plastic surgery", "Oncoplastic/reconstructive surgery",
+                 "Pediatric plastic surgery", "Oncoplastic surgery",
                  "General reconstructive surgery", "Other"))
   )
 
@@ -444,6 +449,10 @@ subspecialty_bar <- clean_subspecialty %>%
   ) +
   scale_fill_distiller(palette = "YlOrRd",
                        direction = 1) +
+  # Wrap long x-axis labels
+  scale_x_discrete(
+    labels = \(x) stringr::str_wrap(x, width = 15)
+  ) +
   labs(
     title = "Distribution of Subspecialty",
     x = "Subspecialty",
@@ -453,7 +462,7 @@ subspecialty_bar <- clean_subspecialty %>%
   theme(
     axis.ticks = element_blank(),
     axis.title = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1, size = ),
+    axis.text.x = element_text(angle = 45, hjust = 0.5, vjust = 0.7, size = 8),
     legend.position = "none",
     panel.grid = element_blank()
   )
@@ -462,30 +471,33 @@ subspecialty_bar
 ```
 
 ## Years in Practice
-
 ### Histogram
 
 ```{r yrs_practice include=F}
 # Create histogram of years in practice
 yrs_practice <- df %>%
   filter(!is.na(year_prs_accredited),
+         # Filter out outlier
          year_prs_accredited <50) %>% 
   ggplot(aes(
     x = year_prs_accredited,
     fill = after_stat(count)
     )) +
   geom_histogram(
-    binwidth = 5,
+    binwidth = 1,
     boundary = 0,
     color = "white"
   ) +
   geom_text(
-    stat = "bin",
-    binwidth = 5,
-    boundary = 0,
-    aes(label = paste0("n = ", after_stat(count))),
-    vjust = 1.5,
-    size = 3
+  stat = "bin",
+  binwidth = 1,
+  boundary = 0,
+  aes(label = ifelse(
+    after_stat(count) > 0,
+    paste0("n = ", after_stat(count)),
+    "")),
+  vjust = -1,
+  size = 2.5
   ) +
   scale_fill_distiller(
     palette = "YlOrRd",
@@ -496,17 +508,19 @@ yrs_practice <- df %>%
     x = "Years in Practice",
     y = "Number of Surgeons"
   ) +
+  scale_x_continuous(breaks = seq(0,25, by = 5)) +
+  scale_y_continuous(breaks = seq(0,20, by = 5)) +
   theme_minimal() +
   theme(
-    axis.ticks = element_blank(),
     axis.title = element_blank(),
-    axis.text.x = element_text(size = 10),
     legend.position = "none",
-    panel.grid = element_blank()
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.4)
   )
 
 yrs_practice
 ```
+
 ### Summary Stats
 
 ```{r yrs_practice_stats include=F}
@@ -523,7 +537,10 @@ yrs_practice_stats <- df %>%
     max = max(year_prs_accredited, na.rm = TRUE)
   )
 
+yrs_practice_stats
 ```
+
+### Box-whisker
 
 ```{r box-whisker_plot include=F}
 # Create boxplot of years in practice
@@ -566,6 +583,101 @@ yrs_practice_boxplot <- df %>%
 
 yrs_practice_boxplot
 
+```
+
+## Number of Operating Facilities
+
+```{r facilities_plot include=F}
+# Visualize number of facilities
+facility <- df %>% 
+  count(multiple_facilities) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(multiple_facilities, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Operate in Multiple Facilities?",
+    x = "Yes or No",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+  
+facility
+```
+
+```{r distribute_facillity_count include=F}
+df <- df %>% 
+  mutate(num_facilities = if_else(
+    multiple_facilities == "no", 
+    1,
+    num_facilities
+  )
+)
+
+```
+
+
+```{r multiple_facilities include=F}
+# Create barplot for multiple facilities
+num_facility <- df %>%
+  filter(!is.na(num_facilities)) %>%
+  count(num_facilities) %>%
+  ggplot(aes(
+    x = factor(num_facilities),
+    y = n,
+    fill = n
+  )) +
+  geom_col(
+    width = 0.7,
+    color = "white"
+  ) +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = -0.5,
+    size = 2.5
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Number of Facilities",
+    x = "Number of Servicing Facilities",
+    y = "Number of Surgeons"
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(5),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "grey85",
+      linewidth = 0.4
+    )
+  )
+
+num_facility
 ```
 
 
@@ -645,13 +757,47 @@ for (country_name in countries) {
     paste("Qualification Distribution -", country_name)
   )
 
+  # Create accredition plot
+  accreditation_plot <- create_barplot(
+    country_df,
+    accreditation_body,
+    paste("Accreditation Distribution -", country_name)
+  )
+  
+  # Create position plot
+  position_plot <- create_barplot(
+    country_df,
+    position,
+    paste("Position Distribution -", country_name)
+  )
+  
   # Store plots
   country_plots[[country_name]] <- list(
     age = age_plot,
     gender = gender_plot,
-    qualification = qualification_plot
+    qualification = qualification_plot,
+    accreditation = accreditation_plot,
+    position = position_plot
   )
 }
+
+```
+
+## View plots
+
+```{r view_country_plots include=F}
+
+country <- "uganda"
+
+(
+  country_plots[[country]]$age |
+  country_plots[[country]]$gender
+) /
+(
+  country_plots[[country]]$qualification |
+  country_plots[[country]]$accreditation
+) /
+country_plots[[country]]$position
 
 ```
 
