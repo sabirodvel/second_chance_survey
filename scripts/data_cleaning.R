@@ -215,4 +215,9 @@ clean_subspecialty <- clean_cv_data %>%
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
-#write_csv(clean_cv_data, "data/clean_data_20261022.csv")
+# write_csv(clean_cv_data, "data/clean_data_20261022.csv")
+
+# Save as RDS (preserves factors, levels, and variable types)
+# saveRDS(
+#   clean_cv_data, here("data/clean_data_20261022.rds")
+# )

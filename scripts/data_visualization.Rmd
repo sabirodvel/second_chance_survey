@@ -34,13 +34,14 @@ pacman::p_load(here,
                rnaturalearth,
                rnaturalearthdata,
                patchwork,
-               purrr
+               purrr,
+               scales
                )
 ```
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_csv(here("data/clean_data_20261022.csv"))
+df <- read_rds(here("data/clean_data_20261022.rds"))
 ```
 
 ```{r source_code, include = F}
@@ -55,9 +56,21 @@ source(here("scripts/data_cleaning.R"))
 ### Age distribution
 
 ```{r age_group, include = F}
-# Calculate age groups
-age_group_bar <- df %>% 
-  count(age_group) %>% 
+# Calculate age group counts and percentages
+age_count <- df %>%
+  count(age_group, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = pct_label,
+    label_color = if_else(percentage >= 15, "white", "black")
+  )
+
+# Total number of surgeons
+total_age_n <- sum(age_count$n, na.rm = TRUE)
+
+# Graph barplot
+age_group_bar <- age_count %>%
   ggplot(aes(
     x = age_group,
     y = n,
@@ -65,12 +78,16 @@ age_group_bar <- df %>%
   )) +
   geom_col() +
   geom_text(
-    aes(label = paste0("n = ", n)),
+    aes(label = label, color = label_color),
     vjust = 1.5,
-    size = 3
+    size = 3,
+    show.legend = FALSE
   ) +
-  scale_fill_distiller(palette = "YlOrRd",
-                       direction = 1) +
+  scale_color_identity() +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
   labs(
     title = "Distribution of Age Groups",
     x = "Age Group",
@@ -79,7 +96,7 @@ age_group_bar <- df %>%
   theme_minimal() +
   theme(
     axis.ticks = element_blank(),
-    axis.title = element_blank(),
+    axis.title.x = element_blank(),
     legend.position = "none",
     panel.grid = element_blank()
   )
@@ -90,9 +107,21 @@ age_group_bar
 ### Gender Distribution
 
 ```{r gender include=F}
+# Calculate age group counts and percentages
+gender_count <- df %>%
+  count(gender, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = pct_label,
+    label_color = if_else(percentage >= 60, "white", "black")
+  )
+
+# Total number of surgeons
+total_gender_n <- sum(gender_count$n, na.rm = TRUE)
+
 # Calculate age groups
-gender_bar <- df %>% 
-  count(gender) %>% 
+gender_bar <- gender_count %>% 
   ggplot(aes(
     x = gender,
     y = n,
@@ -100,10 +129,12 @@ gender_bar <- df %>%
   )) +
   geom_col() +
   geom_text(
-    aes(label = paste0("n = ", n)),
+    aes(label = label, color = label_color),
     vjust = 1.5,
-    size = 3
+    size = 3,
+    show.legend = FALSE
   ) +
+  scale_color_identity() +
   scale_fill_distiller(palette = "YlOrRd",
                        direction = 1) +
   labs(
@@ -121,6 +152,72 @@ gender_bar <- df %>%
 
 gender_bar
 ```
+### Demographic Pyramid
+
+```{r demo_pyramid include=F}
+# Calculate counts and percentages by age group and gender
+pyramid_data <- df %>%
+  filter(
+    !is.na(age_group),
+    !is.na(gender),
+    gender %in% c("Male", "Female")
+  ) %>%
+  count(age_group, gender, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    plot_n = if_else(
+      gender == "Male",
+      -n,
+      n
+    ),
+    pct_label = sprintf("%.1f%%", percentage)
+  )
+
+# Create demographic pyramid
+demographic_pyramid <- pyramid_data %>%
+  ggplot(aes(
+    x = age_group,
+    y = plot_n,
+    fill = gender
+  )) +
+  geom_col(width = 0.85) +
+  geom_text(
+    aes(
+      label = pct_label,
+      hjust = if_else(plot_n < 0, 1.1, -0.1)
+    ),
+    size = 3,
+    show.legend = FALSE
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    labels = function(x) abs(x),
+    expand = expansion(mult = 0.15)
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Male" = "darkred",
+      "Female" = "orange"
+    )
+  ) +
+  labs(
+    title = "Age and Gender Distribution of Surgeons",
+    x = "Age Group",
+    y = "Number of Surgeons",
+    fill = "Gender"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+demographic_pyramid
+```
+
 
 ## Country of practice
 
