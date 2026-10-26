@@ -151,15 +151,6 @@ clean_cv_data <- consent_ssa %>%
     
     # Calculate years accredited ~ years in practice
     year_prs_accredited = 2026 - accreditation_year ,
-    
-    # Standarize country practice
-    country_practice = str_trim(str_to_lower(country_practice)),
-    country_practice = case_when(
-      country_practice == "côte d’ivoire" ~ "cote_divoire",
-      country_practice %in% c("drc", "dr congo") ~
-        "democratic_republic_of_the_congo",
-      TRUE ~ country_practice
-    )
 )
 
 # Create factors for categorical variables

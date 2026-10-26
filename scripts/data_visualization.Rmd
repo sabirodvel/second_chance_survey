@@ -152,6 +152,149 @@ gender_bar <- gender_count %>%
 
 gender_bar
 ```
+
+### Participant Characteristic Table
+
+```{r}
+# Section one (header)
+.build_section <- function(df, var, section_label, digits = 1,
+                           include_na_row = FALSE, na_label = "Not reported/applicable") {
+  v <- df[[var]]
+
+  # normalize to character; treat blanks as NA
+  v_chr <- if (is.factor(v)) as.character(v) else as.character(v)
+  v_chr <- ifelse(str_trim(v_chr) == "", NA_character_, v_chr)
+
+  # denominator: non-missing values in this section
+  denom <- sum(!is.na(v_chr))
+
+  # counts for non-missing
+  items <- tibble(value = v_chr)  %>% 
+    filter(!is.na(value)) %>%
+    count(value, name = "n") %>%
+    arrange(desc(n), value) %>%
+    mutate(
+      pct = n / denom,
+      display = sprintf("%s (%s)", n, percent(pct, accuracy = 10^-digits)),
+      row_type = "item",
+      label = as.character(value)
+    ) %>%
+    select(row_type, label, display)
+
+  # optional NA row (excluded from denominator)
+  if (include_na_row && any(is.na(v_chr))) {
+    na_n <- sum(is.na(v_chr))
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        label = na_label,
+        display = sprintf("%s (%s)", na_n, percent(na_n / (denom + na_n), accuracy = 10^-digits))
+      )
+    )
+  }
+
+  # section header row
+  header <- tibble(
+    row_type = "section",
+    label    = sprintf("%s, n (%%)", section_label),
+    display  = sprintf("N = %s studies", comma(denom))
+  )
+
+  bind_rows(header, items)
+}
+
+# ----- Build the whole profile table 
+make_profile_table_gt <- function(
+  df,
+  sections = c(
+    age_group             = "Age Group",
+    gender                = "Gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,      # set TRUE if you want an explicit NA row per section
+  title = "Participant demographics",# table title (left)
+  overall_n_right = TRUE       # show overall N on the far right of the table title
+) {
+  # assemble all sections (stacked)
+  body <- map2_dfr(names(sections), unname(sections), ~
+    .build_section(df, var = .x, section_label = .y, digits = digits, include_na_row = include_na_row)
+  )
+
+  # little helper for visual indent
+  body <- body %>%
+    mutate(
+      Label = ifelse(row_type == "item", paste0("  ", label), label),
+      `n (%)` = display
+    ) %>%
+    select(Label, `n (%)`, row_type)
+
+  # overall N (optional, in the title area)
+  overall_tag <- if (overall_n_right) paste0("N = ", scales::comma(nrow(df)), " studies") else NULL
+
+  gt_tbl <- body %>%
+    gt() %>%
+    cols_hide(columns = row_type) %>%
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+    # style section header rows
+    tab_style(
+      style = list(cell_text(weight = "bold")),
+      locations = cells_body(rows = row_type == "section", columns = "Label")
+    ) %>%
+    tab_style(
+      style = list(cell_text(weight = "bold"), cell_text(align = "right")),
+      locations = cells_body(rows = row_type == "section", columns = "n (%)")
+    ) %>%
+    # add subtle indentation to item rows
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(rows = row_type == "item", columns = "Label")
+    ) %>%
+    # thin row separators between sections
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+    # draw a light rule above each new section
+    tab_style(
+      style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+    cols_label(Label = md(""), `n (%)` = md("")) %>%
+    fmt_markdown(columns = everything())
+
+  gt_tbl
+}
+
+# Make table using gt 
+gt_table <- make_profile_table_gt(
+  df,
+  sections = c(
+    # add more or reorder as you like:
+    age_group             = "Patients (age groups)",
+    gender                = "Patients Gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Participant Characteristics",
+  overall_n_right = TRUE
+)
+gt_table
+
+# # Save Table
+gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+
 ### Demographic Pyramid
 
 ```{r demo_pyramid include=F}
@@ -186,7 +329,7 @@ demographic_pyramid <- pyramid_data %>%
       label = pct_label,
       hjust = if_else(plot_n < 0, 1.1, -0.1)
     ),
-    size = 3,
+    size = 5,
     show.legend = FALSE
   ) +
   coord_flip() +
@@ -206,7 +349,7 @@ demographic_pyramid <- pyramid_data %>%
     y = "Number of Surgeons",
     fill = "Gender"
   ) +
-  theme_minimal() +
+  theme_minimal(base_size = 20) +
   theme(
     axis.ticks = element_blank(),
     panel.grid.major.y = element_blank(),
@@ -216,6 +359,8 @@ demographic_pyramid <- pyramid_data %>%
   )
 
 demographic_pyramid
+
+ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
 ```
 
 
