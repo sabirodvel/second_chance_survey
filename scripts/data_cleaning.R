@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 10/22/2026
+## Updated: 10/27/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -59,7 +59,10 @@ anonymous_data <- raw_data %>%
   ) %>%
   
   # Remove identifiable email fields from analysis data
-  select(email_id, everything(), -email, -email_normalized)
+  select(email_id, everything(), -email, -email_normalized) %>% 
+  
+  # Drop test entry while keeping NAs
+  filter(is.na(country_practice) | country_practice != "Switzerland")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Cleaning columns ----
@@ -138,7 +141,7 @@ clean_cv_data <- consent_ssa %>%
       age_group == "30_39" ~ "30-39",
       age_group == "40_49" ~ "40-49",
       age_group == "50_59" ~ "50-59",
-      age_group == "gte60" ~ ">=60"
+      age_group == "gte60" ~ ">59"
     ),
     
     # Clean other from accreditation
@@ -159,7 +162,7 @@ clean_cv_data <- clean_cv_data %>%
     # Factorize age_group
     age_group = factor(
       age_group,
-      levels = c("<30", "30-39", "40-49", "50-59", ">=60")),
+      levels = c("<30", "30-39", "40-49", "50-59", ">59")),
     # Factorize gender
     gender = factor(
       gender,
@@ -210,5 +213,5 @@ clean_subspecialty <- clean_cv_data %>%
 
 # Save as RDS (preserves factors, levels, and variable types)
 # saveRDS(
-#   clean_cv_data, here("data/clean_data_20261022.rds")
+#   clean_cv_data, here("data/clean_data_20261027.rds")
 # )

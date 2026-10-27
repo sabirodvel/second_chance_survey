@@ -41,12 +41,26 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_rds(here("data/clean_data_20261022.rds"))
+df <- read_rds(here("data/clean_data_20261027.rds"))
 ```
 
 ```{r source_code, include = F}
 # Load source code
 source(here("scripts/data_cleaning.R"))
+```
+
+# Response Rate and Data Completeness
+
+```{r response_rate include=F}
+# Number of participants that gave consent
+clean_data_2 %>% 
+  filter(consent == "yes") %>% 
+  nrow()
+
+# Number of participants that do not qualify to study
+clean_data_2 %>% 
+  filter(practicing_ssa == "no") %>% 
+  nrow()
 ```
 
 # Participant Characteristics
@@ -268,8 +282,7 @@ make_profile_table_gt <- function(
       style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
       locations = cells_body(rows = row_type == "section")
     ) %>%
-    cols_label(Label = md(""), `n (%)` = md("")) %>%
-    fmt_markdown(columns = everything())
+    cols_label(Label = md(""), `n (%)` = md(""))
 
   gt_tbl
 }
@@ -360,7 +373,8 @@ demographic_pyramid <- pyramid_data %>%
 
 demographic_pyramid
 
-ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
+# Save the graph
+# ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
 ```
 
 
