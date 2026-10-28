@@ -41,7 +41,7 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_rds(here("data/clean_data_20261027.rds"))
+df <- read_rds(here("data/clean_data_20261028.rds"))
 ```
 
 ```{r source_code, include = F}
@@ -301,10 +301,11 @@ gt_table <- make_profile_table_gt(
   title = "Participant Characteristics",
   overall_n_right = TRUE
 )
+
 gt_table
 
 # # Save Table
-gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
 ```
 
 
@@ -550,6 +551,9 @@ print(combined_choro_bar)
 # )
 ```
 
+
+# Professional Training
+
 ## Qualification
 
 ```{r qualification include=F}
@@ -624,126 +628,60 @@ accreditation_bar <- df %>%
 accreditation_bar
 ```
 
-
-## Position
-
-```{r position_barplot include=F}
-# Calculate position
-position_bar <- df %>% 
-  count(position) %>% 
-# Graph the plot  
-  ggplot(aes(
-    x = reorder(position, -n),
-    y = n,
-    fill = n
-  )) +
-  geom_col() +
-  geom_text(
-    aes(label = paste0("n = ", n)),
-    vjust = 1.5,
-    size = 3
-  ) +
-  scale_fill_distiller(palette = "YlOrRd",
-                       direction = 1) +
-  labs(
-    title = "Distribution of Position",
-    x = "Position",
-    y = "Number of Surgeons"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.ticks = element_blank(),
-    axis.title = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
-
-position_bar
-```
-
-## Subspecialty
-
-```{r factorize_subspecialty include=F}
-# Factorize subspecialty
-clean_subspecialty <- clean_subspecialty %>% 
-  mutate(
-    # Clean other
-    subspecialty = case_when(
-      subspecialty == "other" & subspecialty_other == 1 ~ 
-        "general_reconstructive",
-      TRUE ~ subspecialty),
-    # Factorize subspecialties
-    subspecialty = factor(
-      subspecialty,
-      levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
-                 "aesthetic", "pediatric", "oncoplastic", "general_reconstructive",
-                 "other"),
-      labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
-                 "Trauma reconstruction", "Aesthetic plastic surgery", 
-                 "Pediatric plastic surgery", "Oncoplastic surgery",
-                 "General reconstructive surgery", "Other"))
-  )
-
-```
-
-```{r subspeciality_barplot include=F}
-# Calculate Subspecialty
-subspecialty_bar <- clean_subspecialty %>% 
-  count(subspecialty) %>% 
-# Graph the plot  
-  ggplot(aes(
-    x = reorder(subspecialty, -n),
-    y = n,
-    fill = n
-  )) +
-  geom_col() +
-  geom_text(
-    aes(label = paste0("n = ", n)),
-    vjust = 1.5,
-    size = 3
-  ) +
-  scale_fill_distiller(palette = "YlOrRd",
-                       direction = 1) +
-  # Wrap long x-axis labels
-  scale_x_discrete(
-    labels = \(x) stringr::str_wrap(x, width = 15)
-  ) +
-  labs(
-    title = "Distribution of Subspecialty",
-    x = "Subspecialty",
-    y = "Number of Surgeons"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.ticks = element_blank(),
-    axis.title = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 0.5, vjust = 0.7, size = 8),
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
-
-subspecialty_bar
-```
-
 ## Years in Practice
+
 ### Histogram
 
 ```{r yrs_practice include=F}
+# Prep data
+practice_df <- df %>% 
+  filter(
+    !is.na(year_prs_accredited),
+    year_prs_accredited >= 0,
+    year_prs_accredited < 50
+  )
+
+# Calculate median
+median_practice <- median(practice_df$year_prs_accredited)
+
 # Create histogram of years in practice
-yrs_practice <- df %>%
-  filter(!is.na(year_prs_accredited),
-         # Filter out outlier
-         year_prs_accredited <50) %>% 
+yrs_practice <- practice_df %>% 
+  
   ggplot(aes(
     x = year_prs_accredited,
     fill = after_stat(count)
     )) +
+    
+  # Histogram
   geom_histogram(
+    aes(fill = after_stat(count)),
     binwidth = 1,
     boundary = 0,
-    color = "white"
+    color = "white",
+    alpha = 0.85
   ) +
+    
+  # Kernel density curve
+  geom_density(
+    aes(y = after_stat(density * n * 1)),
+    color = "grey",
+    linewidth = 0.75,
+    adjust = 1,
+    fill = NA
+  )  +
+  
+  # Median years
+  geom_vline(
+  xintercept = median(
+   df$year_prs_accredited,
+    na.rm = TRUE
+  ),
+  linetype = "dashed",
+  color = "#C0392B",
+  linewidth = 0.8
+ ) +
+    
+  # Frequency labels above bars
   geom_text(
   stat = "bin",
   binwidth = 1,
@@ -760,9 +698,15 @@ yrs_practice <- df %>%
     direction = 1
   ) +
   labs(
-    title = "Distribution of Years in Practice",
-    x = "Years in Practice",
-    y = "Number of Surgeons"
+    title = "Distribution of Years Since Specialty Accreditation",
+    x = "Years Since Specialty Accreditation",
+    y = "Number of Surgeons",
+    caption = paste0(
+      "Grey solid curve: kernel density estimate (scaled to frequency). ",
+      "Red dashed line: median (",
+      round(median_practice, 1),
+      " years)."
+    )
   ) +
   scale_x_continuous(breaks = seq(0,25, by = 5)) +
   scale_y_continuous(breaks = seq(0,20, by = 5)) +
@@ -775,6 +719,10 @@ yrs_practice <- df %>%
   )
 
 yrs_practice
+
+# Save graph
+# ggsave(filename = here("images/histo_yrs_practice.png"), plot = yrs_practice,
+#                        height = 10, width = 13, bg = "white")
 ```
 
 ### Summary Stats
@@ -839,6 +787,417 @@ yrs_practice_boxplot <- df %>%
 
 yrs_practice_boxplot
 
+```
+
+## Professional Training Background
+
+```{r professional_table include=F}
+# Group specialty accreditation years
+training_df <- df %>% 
+  mutate(
+    accreditation_year_group = case_when(
+      as.numeric(as.character(accreditation_year)) < 2000 ~ "Pre-2000",
+      between(as.numeric(as.character(accreditation_year)), 2000, 2009) ~ "2000-2009",
+      between(as.numeric(as.character(accreditation_year)), 2010, 2019) ~ "2010-2019",
+      as.numeric(as.character(accreditation_year)) >= 2020 ~ "2020+",
+      TRUE ~ NA_character_
+    ),
+    accreditation_year_group = factor(
+      accreditation_year_group,
+      levels = c(
+        "Pre-2000",
+        "2000-2009",
+        "2010-2019",
+        "2020+"
+      )
+    )
+  )
+
+# Build individual sections
+.build_training_section <- function(
+  df,
+  var,
+  section_label,
+  digits = 1,
+  include_na_row = FALSE
+) {
+
+  v <- as.character(df[[var]])
+  v <- na_if(str_trim(v), "")
+
+  denom <- sum(!is.na(v))
+
+  items <- tibble(value = v) %>%
+  filter(!is.na(value)) %>%
+  count(value, name = "N") %>%
+  mutate(
+    Percent = round(100 * N / denom, digits),
+    row_type = "item",
+    Label = value
+  ) %>%
+  select(row_type, Label, N, Percent)
+
+  # Sort accreditation years chronologically
+  if (var == "accreditation_year_group") {
+    items <- items %>%
+      arrange(match(
+        Label,
+        c("Pre-2000", "2000-2009", "2010-2019", "2020+")
+      ))
+  } else {
+    items <- items %>%
+      arrange(desc(N), Label)
+  }
+
+  # Optional missing-value row
+  if (include_na_row && any(is.na(v))) {
+    na_n <- sum(is.na(v))
+
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        Label = "Not reported/applicable",
+        N = na_n,
+        Percent = round(100 * na_n / length(v), digits)
+      )
+    )
+  }
+
+  header <- tibble(
+    row_type = "section",
+    Label = section_label,
+    N = denom,
+    Percent = NA_real_
+  )
+
+  bind_rows(header, items)
+}
+
+
+# Build complete professional training table
+make_training_table_gt <- function(
+  df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+) {
+
+  body <- map2_dfr(
+    names(sections),
+    unname(sections),
+    ~ .build_training_section(
+      df,
+      var = .x,
+      section_label = .y,
+      digits = digits,
+      include_na_row = include_na_row
+    )
+  )
+
+  gt_tbl <- body %>%
+    gt() %>%
+    cols_hide(columns = row_type) %>%
+    tab_header(
+      title = md(paste0("**", title, "**")),
+      subtitle = paste0(
+        "Total sample: N = ",
+        scales::comma(nrow(df))
+      )
+    ) %>%
+    cols_label(
+      Label = "Characteristic",
+      N = "N",
+      Percent = "%"
+    ) %>%
+    fmt_number(
+      columns = Percent,
+      decimals = digits
+    ) %>%
+    sub_missing(
+      columns = Percent,
+      missing_text = ""
+    ) %>%
+    fmt_number(
+      columns = N,
+      decimals = 0,
+      use_seps = TRUE
+    ) %>%
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(
+        rows = row_type == "item",
+        columns = Label
+      )
+    ) %>%
+    tab_style(
+      style = cell_borders(
+        sides = "top",
+        color = "grey85",
+        weight = px(1)
+      ),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    cols_align(
+      align = "right",
+      columns = c(N, Percent)
+    ) %>%
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    )
+
+  gt_tbl
+}
+
+# Make table
+gt_training_table <- make_training_table_gt(
+  training_df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+)
+
+gt_training_table
+
+# Save Table
+# gtsave(gt_training_table, here("images/gt_training.png"))
+
+```
+
+
+## Position
+```{r position_table include=F}
+# -----------------------------------------
+# Calculate frequencies and percentages
+# -----------------------------------------
+
+valid_n <- sum(!is.na(df$position))
+
+position_summary <- df %>%
+  count(position, name = "N", .drop = FALSE) %>%
+  mutate(
+    Percent = if (valid_n > 0) {
+      round(100 * N / valid_n, 1)
+    } else {
+      NA_real_
+    },
+    Label = as.character(position)
+  ) %>%
+  select(Label, N, Percent)
+
+# -----------------------------------------
+# Create GT table
+# -----------------------------------------
+
+gt_position_table <- position_summary %>%
+  gt() %>%
+
+  tab_header(
+    title = md("**Current Professional Position**"),
+    subtitle = paste0(
+      "Total sample: N = ",
+      scales::comma(nrow(df))
+    )
+  ) %>%
+
+  cols_label(
+    Label = "Professional Position",
+    N = "N",
+    Percent = "%"
+  ) %>%
+
+  fmt_number(
+    columns = N,
+    decimals = 0,
+    use_seps = TRUE
+  ) %>%
+
+  fmt_number(
+    columns = Percent,
+    decimals = 1
+  ) %>%
+
+  sub_missing(
+    columns = Percent,
+    missing_text = ""
+  ) %>%
+
+  cols_align(
+    align = "right",
+    columns = c(N, Percent)
+  ) %>%
+
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    table.border.top.color = "grey70",
+    table.border.top.width = px(1),
+    table.border.bottom.color = "grey70",
+    table.border.bottom.width = px(1)
+  )
+
+# Display table
+gt_position_table
+
+# Save gttable
+# gtsave(gt_position_table, here("images/gt_current_professional_position.png"))
+```
+
+
+```{r position_barplot include=F}
+# Calculate position
+position_bar <- df %>% 
+  count(position) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(position, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Position",
+    x = "Position",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+position_bar
+```
+
+## Subspecialty
+
+```{r factorize_subspecialty include=F}
+# Factorize subspecialty
+clean_subspecialty <- clean_subspecialty %>% 
+  mutate(
+    # Clean other
+    subspecialty = case_when(
+      subspecialty == "other" & subspecialty_other == 1 ~ 
+        "general_reconstructive",
+      TRUE ~ subspecialty),
+    # Factorize subspecialties
+    subspecialty = factor(
+      subspecialty,
+      levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
+                 "aesthetic", "pediatric", "oncoplastic", "general_reconstructive",
+                 "other"),
+      labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
+                 "Trauma reconstruction", "Aesthetic plastic surgery", 
+                 "Pediatric plastic surgery", "Oncoplastic surgery",
+                 "General reconstructive surgery", "Other"))
+  )
+
+```
+
+```{r subspeciality_barplot include=F}
+# Horizontal Bar Chart
+subspecialty_bar <- clean_subspecialty %>%
+
+  # Calculate subspecialty frequencies
+  count(subspecialty) %>%
+  mutate(
+    percent = 100 * n / nrow(df)
+  ) %>%
+
+  # Graph the plot
+  ggplot(aes(
+    x = reorder(subspecialty, n),
+    y = n,
+    fill = n
+  )) +
+
+  geom_col() +
+
+  # Add percentage labels inside bars
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    hjust = 1.2,
+    size = 3.5,
+    color = "black"
+  ) +
+
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+
+  # Wrap long subspecialty labels
+  scale_x_discrete(
+    labels = \(x) stringr::str_wrap(x, width = 15)
+  ) +
+
+  coord_flip() +
+
+  labs(
+    title = "Distribution of Subspecialty",
+    x = "Subspecialty",
+    y = "Number of Surgeons",
+    caption = paste(
+      "Percentages represent the proportion of respondents",
+      "selecting each subspecialty. Multiple selections permitted."
+    )
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 10),
+    axis.text.x = element_text(
+      hjust = 0.5,
+      vjust = 0.7,
+      size = 8
+    ),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = "grey85",linewidth = 0.4),
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+subspecialty_bar
 ```
 
 ## Number of Operating Facilities

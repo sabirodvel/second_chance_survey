@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 10/27/2026
+## Updated: 10/28/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -100,8 +100,7 @@ clean_data_2 <- clean_data %>%
       
       TRUE ~ str_to_title(str_squish(country_practice))
     )
-  )
-
+  ) 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Filter for weeding questions ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -190,10 +189,29 @@ clean_cv_data <- clean_cv_data %>%
 )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Clean discrepencies ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+clean_disc <- clean_cv_data %>% 
+  mutate(
+    # Get rid of wrong accreditation year data
+    accreditation_year = if_else(
+      age_group == "50-59" &
+        accreditation_year == 1950 & year_prs_accredited == 76,
+      NA_real_,
+      accreditation_year
+    ),
+    year_prs_accredited = if_else(
+      age_group == "50-59" & year_prs_accredited == 76, 
+      NA_real_,
+      year_prs_accredited
+    )
+  )
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Country of practice ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Extract unique countries from each column
-clean_country_practice <- clean_cv_data %>% 
+clean_country_practice <- clean_disc %>% 
   separate_rows(country_currently, sep = ";") %>% 
   mutate(country_currently = str_trim(country_currently))
 
@@ -201,7 +219,7 @@ clean_country_practice <- clean_cv_data %>%
 ## Subspecialty ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Extract unique subspecialties from each answer
-clean_subspecialty <- clean_cv_data %>% 
+clean_subspecialty <- clean_disc %>% 
   separate_rows(subspecialty, sep = ";") %>% 
   mutate(subspecialty = str_trim(subspecialty))
 
@@ -209,9 +227,9 @@ clean_subspecialty <- clean_cv_data %>%
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
-# write_csv(clean_cv_data, "data/clean_data_20261022.csv")
+# write_csv(clean_disc, "data/clean_data_20261022.csv")
 
 # Save as RDS (preserves factors, levels, and variable types)
-# saveRDS(
-#   clean_cv_data, here("data/clean_data_20261027.rds")
-# )
+saveRDS(
+  clean_disc, here("data/clean_data_20261028.rds")
+)
