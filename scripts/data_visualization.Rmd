@@ -63,7 +63,7 @@ clean_data_2 %>%
   nrow()
 ```
 
-# Participant Characteristics
+# RESPONDENT CHARACTERISTICS
 
 ## Age and Gender
 
@@ -1415,4 +1415,7 @@ country <- "uganda"
 country_plots[[country]]$position
 
 ```
+
+# PRACTICE SETTING
+
 

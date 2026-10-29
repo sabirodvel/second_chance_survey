@@ -21,13 +21,41 @@ pacman::p_load(tidyverse, janitor, lubridate, here, stringr, gt, readxl, purrr,
 # Load CSV data
 
 ## raw data (only one version)
-raw_data <- read_csv2(here("data/raw/prs_survey_data_20260510.csv"))
+raw_data <- read_csv2(here("data/raw/prs_survey_data_20261014.csv"))
 
 ## raw data (all versions including more than one facility data)
 # TBA
 
 # Clean names
 raw_data <- clean_names(raw_data)
+
+# Load XLS data (facilities)
+raw_data_facilities <- read_excel(here("data/raw/prs_survey_facilities_data.xlsx"), sheet = 2) %>% 
+  clean_names()
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Join two datasets ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# View unique ID 
+# unique(raw_data$id)
+# unique(raw_data_facilities$submission_id)
+# 
+# setdiff(raw_data$id, raw_data_facilities$submission_id)
+# setdiff(raw_data_facilities$submission_id, raw_data$id)
+# 
+# Verfiy data for merging
+# anyDuplicated(raw_data$id)
+# 
+# raw_data_facilities %>% 
+#   count(submission_id) %>% 
+#   filter(n > 1)
+
+# Merge two datasets
+merged_data <- raw_data %>%
+  left_join(raw_data_facilities, 
+            by = c("id" = "submission_id"),
+            relationship = "one-to-many"
+  )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ID & Deidentify emails ----
@@ -230,6 +258,6 @@ clean_subspecialty <- clean_disc %>%
 # write_csv(clean_disc, "data/clean_data_20261022.csv")
 
 # Save as RDS (preserves factors, levels, and variable types)
-saveRDS(
-  clean_disc, here("data/clean_data_20261028.rds")
-)
+# saveRDS(
+#   clean_disc, here("data/clean_data_20261028.rds")
+# )
