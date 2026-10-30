@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 10/28/2026
+## Updated: 10/30/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -21,13 +21,9 @@ pacman::p_load(tidyverse, janitor, lubridate, here, stringr, gt, readxl, purrr,
 # Load CSV data
 
 ## raw data (only one version)
-raw_data <- read_csv2(here("data/raw/prs_survey_data_20261014.csv"))
-
-## raw data (all versions including more than one facility data)
-# TBA
-
-# Clean names
-raw_data <- clean_names(raw_data)
+raw_data <- read_csv2(here("data/raw/prs_survey_data_20261014.csv")) %>% 
+  # Clean names
+  clean_names()
 
 # Load XLS data (facilities)
 raw_data_facilities <- read_excel(here("data/raw/prs_survey_facilities_data.xlsx"), sheet = 2) %>% 
@@ -54,40 +50,16 @@ raw_data_facilities <- read_excel(here("data/raw/prs_survey_facilities_data.xlsx
 merged_data <- raw_data %>%
   left_join(raw_data_facilities, 
             by = c("id" = "submission_id"),
-            relationship = "one-to-many"
-  )
+            relationship = "one-to-many")
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ID & Deidentify emails ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-anonymous_data <- raw_data %>%
-  mutate(
-    
-    # Assign a unique ID to each row
-    id = row_number(),
-    
-    # Normalize email so capitalization/extra spaces do not affect matching
-    email_normalized = email %>%
-      str_trim() %>%
-      str_to_lower(),
-    
-    # Create non-readable duplicate identifier
-    email_id = if_else(
-      is.na(email_normalized) | email_normalized == "",
-      NA_character_,
-      vapply(
-        email_normalized,
-        digest,
-        FUN.VALUE = character(1),
-        algo = "sha256",
-        serialize = FALSE
-      )
-    )
-  ) %>%
+anonymous_data <- merged_data %>%
   
   # Remove identifiable email fields from analysis data
-  select(email_id, everything(), -email, -email_normalized) %>% 
+  select(index.x, id, everything(), -email) %>% 
   
   # Drop test entry while keeping NAs
   filter(is.na(country_practice) | country_practice != "Switzerland")
@@ -99,10 +71,12 @@ anonymous_data <- raw_data %>%
 clean_data <- anonymous_data %>% 
   select(!c(
     logos_note,info_intro, info_contact, consent_header, consent_declined, #NA
-            thank_you_for_your_i_s_study_at_this_time, #thank you note
-            starts_with("note_"),
-            167:176 #id
-            ))
+    thank_you_for_your_i_s_study_at_this_time, #thank you note
+    3,4,6,
+    169:175, #ids and more
+    201:210,
+    starts_with("note_"))
+  )
 
 # Drop binary columns (repeat)
 # clean_data_1 <- clean_data %>%
@@ -129,6 +103,7 @@ clean_data_2 <- clean_data %>%
       TRUE ~ str_to_title(str_squish(country_practice))
     )
   ) 
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Filter for weeding questions ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -252,6 +227,100 @@ clean_subspecialty <- clean_disc %>%
   mutate(subspecialty = str_trim(subspecialty))
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Clean facility names ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Explicit duplicate mappings
+facility_map <- c(
+  # ALERT
+  "alert comprehensive specialized hospital" =
+    "ALERT Comprehensive Specialized Hospital",
+  "alert" =
+    "ALERT Comprehensive Specialized Hospital",
+  
+  # Kijabe
+  "aic kijabe hospital" = "AIC Kijabe Hospital",
+  "kijabe hospital" = "AIC Kijabe Hospital",
+  
+  # Mulago
+  "mulago national referral hospital" =
+    "Mulago National Referral Hospital",
+  "mulago hospital" =
+    "Mulago National Referral Hospital",
+  
+  # Felege Hiwot
+  "felgehiwot hospital" = "Felege Hiwot Hospital",
+  "felegehiwot" = "Felege Hiwot Hospital",
+  
+  # Yekatit
+  "yekatit 12 hospital medical college" =
+    "Yekatit 12 Hospital Medical College",
+  "yekatit" =
+    "Yekatit 12 Hospital Medical College",
+  
+  # Rwanda Military Hospital
+  "rwanda military teachingchospital" =
+    "Rwanda Military Teaching and Referral Hospital",
+  "rwanda millitary hospital" =
+    "Rwanda Military Teaching and Referral Hospital",
+  "rwanda military teaching and referral hospital" =
+    "Rwanda Military Teaching and Referral Hospital",
+  
+  # Worabe
+  "werabe comprehe sive specialised hospital" =
+    "Worabe Comprehensive Specialized Hospital",
+  "worabe comprehensive specialized hospital" =
+    "Worabe Comprehensive Specialized Hospital",
+  
+  # CHUK
+  "chuk" = "University Teaching Hospital of Kigali (CHUK)",
+  "university teaching hospital of kigali" =
+    "University Teaching Hospital of Kigali (CHUK)",
+  
+  # Kayunga
+  "kayunaga regional referral hospital" =
+    "Kayunga Regional Referral Hospital",
+  
+  # Person's name entered instead of facility
+  "thierry cyuzuzo" =
+    "University Teaching Hospital of Kigali (CHUK)",
+  
+  # Nakasero
+  "nakasero" = "Nakasero Hospital Limited",
+  
+  # Kamuzu Central Hospital
+  "kch" = "Kamuzu Central Hospital",
+  
+  # Muhimbili
+  "muhimbili" = "Muhimbili National Hospital"
+)
+
+# Standardize names and remove multiple-facility observation
+df <- df %>%
+  filter(
+    !str_detect(
+      coalesce(facility_name, ""),
+      regex(
+        "kayunga regional referral hospital and",
+        ignore_case = TRUE
+      )
+    )
+  ) %>%
+  mutate(
+    facility_name = str_squish(facility_name),
+    facility_name = coalesce(
+      unname(facility_map[str_to_lower(facility_name)]),
+      facility_name
+    )
+  )
+
+# # Check standardized facility names
+# sort(unique(clean_facility$facility_name))
+# 
+# # Count unique facilities
+# n_distinct(clean_facility$facility_name)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save dataset
@@ -259,5 +328,5 @@ clean_subspecialty <- clean_disc %>%
 
 # Save as RDS (preserves factors, levels, and variable types)
 # saveRDS(
-#   clean_disc, here("data/clean_data_20261028.rds")
+#   clean_disc, here("data/clean_data_20261030.rds")
 # )
