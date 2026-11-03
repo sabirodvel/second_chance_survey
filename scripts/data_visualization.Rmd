@@ -1418,4 +1418,15 @@ country_plots[[country]]$position
 
 # PRACTICE SETTING
 
+## Facility Characteristics Summary
 
+```{r facility_table include=F}
+# Create dataset
+facilities <- df %>%
+  distinct(
+    facility_name,
+    facility_location_type,
+    facility_level,
+    facility_ownership
+  )
+```

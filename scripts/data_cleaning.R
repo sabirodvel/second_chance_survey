@@ -320,6 +320,23 @@ df <- df %>%
 # # Count unique facilities
 # n_distinct(clean_facility$facility_name)
 
+# Clean facilities classification
+df %>%
+  group_by(facility_name) %>%
+  summarize(
+    n_locations = n_distinct(facility_location_type, na.rm = TRUE),
+    n_levels = n_distinct(facility_level, na.rm = TRUE),
+    n_ownerships = n_distinct(facility_ownership, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(
+    n_locations > 1 |
+      n_levels > 1 |
+      n_ownerships > 1
+  )
+
+# See conflicting classifications
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
