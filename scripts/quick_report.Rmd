@@ -1,26 +1,31 @@
 ---
-title: "2nd Chance Survey: Descriptive Analysis"
+title: "2nd Chance Survey: Preliminary Report"
 author: "Sabina Rodriguez"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: 
+output:
+  pdf_document:
+    toc: true
+    number_sections: false
+    latex_engine: xelatex
+    fig_width: 8
+    fig_height: 5
   html_document:
     theme: simplex
-    toc: yes
+    toc: true
     toc_float:
       collapsed: true
-editor_options: 
+editor_options:
   chunk_output_type: inline
-  markdown: 
+  markdown:
     wrap: none
 ---
 
-# Report purpose
 
-This report presents the descriptive findings of the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of participating plastic and reconstructive surgeons in Sub-Saharan Africa (SSA).
+# Report Purpose
 
-The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning.
+This report presents preliminary descriptive findings from the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of plastic and reconstructive surgeons currently practicing in Sub-Saharan Africa (SSA). The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning in the region.
 
-Findings reflect the participating respondents and the facilities they reported and should not be interpreted as representative of the entire plastic surgery workforce in SSA.
+Findings reflect the participating respondents and the facilities they reported and should not be interpreted as representative of the entire plastic and reconstructive surgery workforce in SSA.
 
 ```{r global_chunk options, echo=FALSE}
 knitr::opts_chunk$set(echo = F, message = F, warning = F)
@@ -55,15 +60,17 @@ df <- read_rds(here("data/clean_data_20261105.rds"))
 merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
 ```
 
-# Response rate and data completeness
+# Response Rate and Data Completeness
 
-Potential participants were identified through multiple sources, including the College of Surgeons of East, Central and Southern Africa (COSECSA), the 2nd Chance professional network, and publicly available online resources. The COSECSA membership lists identified 1,689 surgeons. The 2nd Chance network, developed through professional contacts and conference attendance, contributed an additional 64 surgeons not included in the COSECSA lists. Online searches of LinkedIn, search engines, and published literature identified another 32 surgeons not previously identified through either source. Together, these sources yielded 1,785 unique potential participants.
+Potential participants were identified through three complementary sources. The COSECSA Entire Surgeon Membership List (n = 1,655) and the COSECSA Plastic Reconstructive Surgeon Fellow List (n = 129) constituted the COSECSA stream. The 2nd Chance Professional Network (n = 57) and 2nd Chance COSECSA Conference Attendance list (n = 40) were merged into a combined list of 97 individuals. Online searches of published literature and other sources identified a further 35 individuals. After deduplication — 33 duplicates from the 2nd Chance stream and 3 from online sources (36 total removed) — these streams yielded 225 unique potential participants (THIS NUMBER IS YET TO BE CONFIRMED WITH COSECSA).
 
-A total of 51 individuals accessed the survey. Of these, one declined informed consent, and eight were excluded because they were not currently practicing in Sub-Saharan Africa. Consequently, 42 participants met the eligibility criteria and were eligible for inclusion in the analysis.
+Of the 51 individuals who accessed the survey, 9 were excluded: 1 declined informed consent and 8 were not currently practicing in SSA, leaving 42 eligible participants (82.4% of those who accessed the survey). The response rate relative to the deduplicated pool was 18.7% (42/225).
 
-![Figure 1. Participant_identification_and_inclusion_flow_diagram](../images/participant_recruitment_flow.png)
+![Figure 1. Participant identification and inclusion flowdiagram. Numbers highlighted in red are to be confirmed with COSECSA](../images/2nd_chance_survey_diagram.png)
 
-During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, corresponding to 76 years since accreditation. As these values were inconsistent with the respondent's reported age and could not be reliably corrected, both the accreditation year and derived years-in-practice variable were treated as missing for this observation. The respondent was retained in all other analyses for which valid data were available.
+\-
+
+During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, implying 76 years since accreditation — inconsistent with the reported age and not reliably correctable. Both the accreditation year and the derived years-in-practice variable were treated as missing for this individual, who was retained in all other analyses for which valid data were available. Analyses involving accreditation year therefore have a denominator of N = 41.
 
 # Respondent Characteristics
 
@@ -124,9 +131,9 @@ age_group_bar <- age_count %>%
 age_group_bar
 ```
 
-### Gender Distribution
+Respondents skewed markedly young: the largest age group was 30–39 years, comprising 25 of 42 participants (59.5%). Surgeons aged 40–49 accounted for 6 (14.3%), those aged 50–59 for 5 (11.9%), those under 30 for 4 (9.5%), and those over 59 for 2 (4.8%). Nearly three-quarters of respondents (74 of every 100) were therefore under 40 years of age, reflecting a predominantly early- to mid-career workforce.
 
-The gender distribution of respondents is presented in Figure 2. Differences in the representation of gender categories within the sample provide context for examining the demographic composition of the participating workforce.
+### Gender Distribution
 
 ```{r gender, echo=F}
 # Calculate age group counts and percentages
@@ -174,6 +181,8 @@ gender_bar <- gender_count %>%
 
 gender_bar
 ```
+
+The sample was predominantly male: 28 respondents (66.7%) identified as male and 14 (33.3%) as female. This gender imbalance is consistent with broader patterns in surgical specialties globally, though the relatively substantial proportion of female surgeons (one in three) is noteworthy for the SSA context and merits monitoring in future surveys.
 
 ### Participant Characteristics
 
@@ -389,13 +398,10 @@ demographic_pyramid
 # ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
 ```
 
-## Country of practice
+## Country of Practice
 
-Survey respondents reported practicing across multiple countries in Sub-Saharan Africa, demonstrating the geographic reach of the participating workforce.
+The table below summarizes the geographic distribution of reported countries of practice among respondents, including the frequency and percentage of each country. As respondents could practice in multiple countries, percentages are based on the total number of country mentions.
 
-The geographic distribution of respondents is presented in Figure 4. The accompanying country-level comparison highlights the five countries contributing the largest numbers of reported surgeons.
-
-Variation in participation across countries should be considered when interpreting the results, as the number of respondents may reflect differences in survey reach and participation rather than the underlying distribution of plastic surgeons across the region.
 
 ```{r prep_country_practice, include=F}
 # View the countries
@@ -441,6 +447,60 @@ africa_data <- africa %>%
     by = c("adm0_a3" = "iso_a3")
   )
 
+```
+
+```{r country_practice_table, echo=FALSE}
+# Create table from the choropleth data
+country_practice_table <- country_counts %>%
+  mutate(
+    country = countrycode::countrycode(
+      iso_a3,
+      origin = "iso3c",
+      destination = "country.name"
+    )
+  ) %>%
+  group_by(iso_a3, country) %>%
+  summarise(
+    n = sum(country_count),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n), country) %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    `n (%)` = sprintf("%d (%.1f%%)", n, percentage)
+  ) %>%
+  select(
+    Country = country,
+    `Reported practices, n (%)` = `n (%)`
+  )
+
+# Format table
+country_practice_table %>%
+  gt() %>%
+  tab_header(
+    title = md("**Geographic Distribution of Plastic Surgery Practice**"),
+    subtitle = "Reported countries of practice among survey respondents"
+  ) %>%
+  cols_align(
+    align = "left",
+    columns = Country
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = `Reported practices, n (%)`
+  ) %>%
+  tab_source_note(
+    source_note = md(
+      "*Note:* Respondents could report practicing in multiple countries. Percentages are based on the total number of country mentions (N = 43), not unique respondents."
+    )
+  ) %>%
+  opt_row_striping() %>%
+  tab_options(
+    table.font.size = px(12),
+    heading.title.font.size = px(16),
+    heading.subtitle.font.size = px(12),
+    column_labels.font.weight = "bold"
+  )
 ```
 
 ```{r coutry_plot, include=F}
@@ -534,8 +594,6 @@ africa_map <- ggplot() +
 africa_map
 ```
 
-The combined figure places the five leading contributing countries alongside the regional map, allowing stakeholders to see both the broad footprint and the concentration of responses. Together, these visuals are helpful for discussing geographic coverage and possible gaps.
-
 ```{r combine_barpleth, echo=F}
 # Combine both barplot with choropleth
 combined_choro_bar <-
@@ -566,13 +624,15 @@ print(combined_choro_bar)
 # )
 ```
 
+Respondents reported practicing plastic surgery across multiple countries in sub-Saharan Africa (SSA). Ethiopia accounted for the largest proportion of reported countries of practice, with 13 mentions (30.2%), followed by Rwanda with 9 (20.9%), Uganda with 5 (11.6%), and Kenya with 4 (9.3%). Malawi contributed 2 mentions (4.7%). Together, these five countries accounted for 33 of the 43 reported country mentions (76.7%).
+
+The geographic distribution of reported practice locations was concentrated in East Africa, with Ethiopia and Rwanda alone accounting for 51.2% of all country mentions. Because respondents could report practicing in more than one country, these percentages represent the distribution of reported practice locations rather than the proportion of unique respondents. This concentration may reflect the geographic reach of survey recruitment networks, particularly COSECSA, and should not be interpreted as representative of the overall distribution of plastic surgeons or surgical capacity across SSA.
+
 # Professional Training
 
 Professional training characteristics were examined to describe the educational qualifications, accreditation pathways, years since specialty accreditation, and current professional positions of participating surgeons.
 
-## Qualification
-
-Respondents reported a range of professional qualifications, reflecting differences in educational and specialty training backgrounds. The distribution of qualifications is presented in Figure 5.
+## Highest Qualification
 
 ```{r qualification, echo=F}
 # Calculate qualification
@@ -609,11 +669,9 @@ qualification_bar <- df %>%
 qualification_bar
 ```
 
-## Accreditation
+The most common highest qualification was a Fellowship, held by 19 respondents (45.2%), followed by a Membership qualification (12 respondents, 28.6%), a Master's degree in Surgery (7 respondents, 16.7%), a Doctoral or research degree (2 respondents, 4.8%), and a primary medical degree only (2 respondents, 4.8%).
 
-Survey respondents reported accreditation through different professional bodies. The distribution of accreditation bodies is presented in Figure 6, illustrating the diversity of specialty accreditation pathways represented within the sample.
-
-Differences in national training and accreditation systems should be considered when comparing qualifications across countries.
+## Primary Accreditation Body
 
 ```{r accreditation_barplot, echo=F}
 # Calculate accreditation
@@ -650,13 +708,9 @@ accreditation_bar <- df %>%
 accreditation_bar
 ```
 
+COSECSA was the accrediting body for the largest share of respondents: 22 (52.4%) were COSECSA-accredited. National training programmes accredited 14 respondents (33.3%), international training programmes 3 (7.1%), WACS 2 (4.8%), and other bodies 1 (2.4%). The predominance of COSECSA accreditation aligns with the recruitment strategy and geographic concentration of respondents in East and Central Africa.
+
 ## Years Since Specialty Accreditation
-
-The number of years since specialty accreditation was examined as an indicator of respondents' professional experience following specialty qualification.
-
-The distribution is presented in Figure 7, with the median indicating the midpoint of reported years since accreditation. Descriptive statistics, including the mean, standard deviation, median, and interquartile range, provide additional information about variation in experience.
-
-This measure represents time since specialty accreditation and may not correspond directly to total years of clinical practice.
 
 ```{r yrs_practice, echo=F}
 # Prep data
@@ -810,6 +864,8 @@ yrs_practice_boxplot <- df %>%
 yrs_practice_boxplot
 
 ```
+
+The vast majority of respondents — 30 of 41 with valid accreditation data (73.2%) — received specialty accreditation in 2020 or later, confirming the early-career profile of the sample. A further 5 respondents (12.2%) were accredited between 2010 and 2019, and 6 (14.6%) between 2000 and 2009. No respondents reported accreditation before 2000 (the one anomalous 1950 value was excluded as described in the data completeness section).
 
 ## Professional Training Background
 
@@ -1013,9 +1069,7 @@ gt_training_table
 
 ## Current Professional Position
 
-Respondents occupied a range of professional positions at the time of the survey. The distribution of reported positions is presented in Table 3 and Figure 8.
-
-These findings describe the professional roles represented within the sample and provide context for understanding variation in clinical responsibilities and institutional appointments.
+Consultant/Attending surgeons were the most common position, comprising 16 respondents (38.1%). Residents and trainees accounted for 15 respondents (35.7%), making trainees collectively the second largest group. Academic faculty and Fellows each accounted for 4 respondents (9.5% each), and Department heads/chairs for 3 (7.1%). Taken together, the high proportion of trainees and early-career consultants (38.1% + 35.7% = 73.8%) reinforces the predominantly junior profile identified in the age and accreditation data.
 
 ```{r position_table, echo=F}
 # -----------------------------------------
@@ -1131,9 +1185,7 @@ position_bar
 
 ## Subspecialty
 
-Respondents reported practicing across several plastic and reconstructive surgery subspecialties, reflecting the range of clinical services represented within the surveyed workforce.
-
-The distribution of subspecialties is presented in Figure 9. As respondents could select multiple subspecialties, the reported percentages represent the proportion of respondents identifying with each area of practice and are not expected to total 100%.
+Respondents could select multiple subspecialties. Reported subspecialties spanned the breadth of plastic and reconstructive surgery, including burn surgery, hand surgery, craniofacial and cleft surgery, microsurgery, aesthetic surgery, and general reconstructive surgery, among others. Because respondents could identify with more than one area, percentages are not expected to total 100% and are reported by subspecialty in the accompanying figures.
 
 ```{r factorize_subspecialty, echo=F}
 # Extract unique subspecialties from each answer
@@ -1246,7 +1298,7 @@ Because individual surgeons may practice at multiple institutions and multiple r
 
 Survey respondents identified multiple healthcare facilities where they provided clinical services. The frequency with which each facility was reported is summarized in Table 4.
 
-These results provide an overview of the institutions represented in the survey and the extent to which individual facilities were reported by multiple respondents.
+Respondents collectively identified 52 unique healthcare facilities across 12 countries. The University Teaching Hospital of Kigali (CHUK) was the most frequently reported facility, cited by 8 respondents, followed by ALERT Comprehensive Specialized Hospital in Ethiopia (5 respondents) and Yekatit 12 Hospital Medical College in Ethiopia (4 respondents). Rwanda Military Teaching and Referral Hospital was cited by 3 respondents; AIC Kijabe Hospital (Kenya), AaBET Hospital (Ethiopia), Felege Hiwot Hospital (Ethiopia), Mulago National Referral Hospital (Uganda), and Worabe Comprehensive Specialized Hospital (Ethiopia) were each cited by 2 respondents. The remaining 43 facilities were each cited by a single respondent.
 
 ```{r echo=F}
 # Prepare facility counts
@@ -1542,13 +1594,13 @@ facility_bar
 
 ```
 
+Reported facilities spanned multiple levels of the health system. Central hospitals accounted for 12 facilities (23.1%), provincial hospitals for 11 (21.2%), and university hospitals for 11 (21.2%). District hospitals contributed 9 facilities (17.3%), central-university combined hospitals 7 (13.5%), and provincial-central and provincial-university combined hospitals 1 each (1.9%).
+
+Public facilities were the most common ownership type (18 facilities, 34.6%), closely followed by private facilities (17, 32.7%). Quasi-governmental facilities accounted for 6 (11.5%), NGO-operated facilities for 5 (9.6%), mission hospitals for 3 (5.8%), military hospitals for 2 (3.8%), and other ownership types for 1 (1.9%). The near-parity between public and private facilities signals that plastic surgery services in SSA are delivered through a mixed-ownership landscape.
+
 ## Urban vs. Rural Facility Distribution by Country
 
-The distribution of reported facilities across urban and rural settings varied by country. Figure 11 presents the proportion of facilities classified as urban or rural within each country represented in the facility dataset.
-
-These findings provide a descriptive overview of the geographic settings in which participating surgeons reported practicing.
-
-Differences between countries should be interpreted in relation to the number of facilities reported and the coverage of the survey rather than as direct measures of national surgical service availability.
+The great majority of reported facilities were urban: 45 of 52 (86.5%), with only 7 (13.5%) classified as rural. This urban predominance was consistent across countries, suggesting that plastic surgery services are concentrated in city-based hospitals throughout the region.
 
 ```{r urban_rural_barplot, echo=F}
 # Count facility and percentages
@@ -1738,9 +1790,17 @@ num_facility <- df %>%
 num_facility
 ```
 
+A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses.
+
 # Workforce Profile
 
+A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses. Workforce Profile and Staffing Respondents provided staffing estimates — plastic and reconstructive surgeons (PRS), PRS trainees, operating theatre (OT) nurses, and physiotherapists — for each of their reported facilities. Where multiple respondents reported the same facility, values are presented as median (minimum–maximum) to account for variation in individual estimates; single-respondent facilities report the value directly.
+
 ## Staffing Numbers per Facility
+
+Staffing numbers varied substantially across facilities and countries. Among the most heavily staffed facilities: - Saint Paul's Hospital Millennium Medical College (Ethiopia): 10 PRS surgeons, 17 PRS trainees, 20 OT nurses, 3 physiotherapists — the largest reported PRS surgeon count across all facilities. - Kenyatta National Hospital (Kenya): 5 PRS surgeons, 25 PRS trainees, 15 OT nurses, 4 physiotherapists — notable for the high trainee-to-surgeon ratio of 5:1. - King Faisal Hospital (Rwanda): 2 PRS surgeons, 25 PRS trainees, 10 OT nurses, 2 physiotherapists — the highest reported trainee count of any single facility. - ALERT Comprehensive Specialized Hospital (Ethiopia): median 8 PRS surgeons (range 7–9), 13 trainees (10–26), 24 OT nurses (16–30), 6 physiotherapists (5–10), based on 5 respondents. - Yekatit 12 Hospital Medical College (Ethiopia): median 5 PRS surgeons (5–7), 23 trainees (13–30), 12.5 OT nurses (10–15), 4.5 physiotherapists (3–6), based on 4 respondents. - University Teaching Hospital of Kigali — CHUK (Rwanda): median 1 PRS surgeon (1–4), 12.5 trainees (5–25), 3 OT nurses (2–10), 1 physiotherapist (0–2), based on 8 respondents — the most-reported facility, but with a notably low median PRS surgeon count.
+
+Several facilities — including Nkinga Referral Hospital (Tanzania), Kalembelembe Pediatric Hospital (DR Congo), CHR Notsé (Togo), and Kalkaal Hospital (Somalia) — reported zero PRS surgeons, with either trainees only or minimal allied health support, suggesting severely limited specialist capacity. Staffing counts were not independently verified and represent self-reported estimates.
 
 ```{r staffing_table, echo=F}
 # Create function
@@ -1828,3 +1888,7 @@ facility_staffing %>%
     )
   )
 ```
+
+# Pending Analyses
+
+This report covers the demographic, professional training, geographic, and practice setting domains of the 2nd Chance Survey. Three survey domains have not yet been analysed and will be addressed in subsequent reports: service delivery, infrastructure and equipment, and training. Findings from these domains are expected to substantially enrich the workforce profile presented here and will be integrated into a comprehensive final report.
