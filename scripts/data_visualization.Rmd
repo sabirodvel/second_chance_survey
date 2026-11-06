@@ -1774,4 +1774,92 @@ gt_num_facilities
 
 # WORKFORCE PROFILE
 
-## 
+## Staffing Numbers per Facility
+
+```{r}
+# Create function
+format_staffing <- function(x) {
+
+  # Remove missing values
+  x <- x[!is.na(x)]
+
+  # If all values are missing
+  if (length(x) == 0) return("NR")
+
+  # If only one respondent reported a value
+  if (length(x) == 1) {
+    return(as.character(x))
+  }
+
+  # If multiple respondents reported values
+  median_value <- median(x)
+  min_value <- min(x)
+  max_value <- max(x)
+
+  # If all respondents agree, show only the value
+  if (min_value == max_value) {
+    return(as.character(median_value))
+  }
+
+  # Otherwise, show median (minimum–maximum)
+  paste0(
+    median_value,
+    " (", min_value, "–", max_value, ")"
+  )
+}
+
+# Facility-level staffing summary
+facility_staffing <- merged_df %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    n_respondents = n(),
+
+    prs_surgeons = format_staffing(num_prs_surgeons),
+    prs_trainees = format_staffing(num_prs_trainees),
+    ot_nurses = format_staffing(num_ot_nurses),
+    physiotherapists = format_staffing(num_physiotherapists),
+
+    .groups = "drop"
+  ) %>%
+  arrange(facility_country, facility_name)
+
+# Create table grouped by country
+facility_staffing %>%
+  gt(groupname_col = "facility_country") %>%
+  cols_label(
+    facility_name = "Facility",
+    n_respondents = "Respondents (n)",
+    prs_surgeons = "PRS surgeons",
+    prs_trainees = "PRS trainees",
+    ot_nurses = "OT nurses",
+    physiotherapists = "Physiotherapists"
+  ) %>%
+  tab_header(
+    title = "Reported Surgical Workforce by Facility and Country",
+    subtitle = "Facility-level workforce estimates"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = -facility_name
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+  tab_options(
+    table.font.size = px(12),
+    data_row.padding = px(5),
+    row_group.font.weight = "bold",
+    column_labels.font.weight = "bold"
+  ) %>%
+  tab_source_note(
+    source_note = paste(
+      "For facilities with multiple valid reports,",
+      "values represent median (minimum–maximum).",
+      "For facilities with one valid report,",
+      "the reported count is shown directly.",
+      "Staffing counts were not independently verified."
+    )
+  )
+```
+

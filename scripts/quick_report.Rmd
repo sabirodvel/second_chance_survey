@@ -55,15 +55,15 @@ df <- read_rds(here("data/clean_data_20261105.rds"))
 merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
 ```
 
-
 # Response rate and data completeness
 
 Potential participants were identified through multiple sources, including the College of Surgeons of East, Central and Southern Africa (COSECSA), the 2nd Chance professional network, and publicly available online resources. The COSECSA membership lists identified 1,689 surgeons. The 2nd Chance network, developed through professional contacts and conference attendance, contributed an additional 64 surgeons not included in the COSECSA lists. Online searches of LinkedIn, search engines, and published literature identified another 32 surgeons not previously identified through either source. Together, these sources yielded 1,785 unique potential participants.
 
 A total of 51 individuals accessed the survey. Of these, one declined informed consent, and eight were excluded because they were not currently practicing in Sub-Saharan Africa. Consequently, 42 participants met the eligibility criteria and were eligible for inclusion in the analysis.
 
-During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, corresponding to 76 years since accreditation. As these values were inconsistent with the respondent's reported age and could not be reliably corrected, both the accreditation year and derived years-in-practice variable were treated as missing for this observation. The respondent was retained in all other analyses for which valid data were available.
+![Figure 1. Participant_identification_and_inclusion_flow_diagram](../images/participant_recruitment_flow.png)
 
+During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, corresponding to 76 years since accreditation. As these values were inconsistent with the respondent's reported age and could not be reliably corrected, both the accreditation year and derived years-in-practice variable were treated as missing for this observation. The respondent was retained in all other analyses for which valid data were available.
 
 # Respondent Characteristics
 
@@ -74,7 +74,6 @@ The demographic composition of survey respondents was examined according to age 
 ### Age Distribution
 
 Respondents represented multiple age groups, indicating variation in career stages among participating surgeons. The age distribution is presented in Figure 1, highlighting the relative representation of surgeons across age categories.
-
 
 ```{r age_group, echo = F}
 # Calculate age group counts and percentages
@@ -129,7 +128,6 @@ age_group_bar
 
 The gender distribution of respondents is presented in Figure 2. Differences in the representation of gender categories within the sample provide context for examining the demographic composition of the participating workforce.
 
-
 ```{r gender, echo=F}
 # Calculate age group counts and percentages
 gender_count <- df %>%
@@ -180,7 +178,6 @@ gender_bar
 ### Participant Characteristics
 
 Table 1 summarizes respondents' demographic characteristics and countries of practice. Age, gender, and geographic distributions are reported as frequencies and percentages, with denominators based on available responses for each characteristic.
-
 
 ```{r}
 # Section one (header)
@@ -321,11 +318,9 @@ gt_table
 #gtsave(gt_table, here("images/gt_participants_characteristics.png"))
 ```
 
-
 ### Age and Gender Distribution
 
 The combined age and gender distribution is presented in Figure 3. This analysis examines how age groups are represented among male and female respondents, providing additional insight into the demographic composition of participating surgeons.
-
 
 ```{r demo_pyramid, echo=F}
 # Calculate counts and percentages by age group and gender
@@ -394,7 +389,6 @@ demographic_pyramid
 # ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
 ```
 
-
 ## Country of practice
 
 Survey respondents reported practicing across multiple countries in Sub-Saharan Africa, demonstrating the geographic reach of the participating workforce.
@@ -449,7 +443,6 @@ africa_data <- africa %>%
 
 ```
 
-
 ```{r coutry_plot, include=F}
 # Calculate total number of country counts
 total_n <- sum(country_counts$country_count, na.rm = TRUE)
@@ -493,7 +486,6 @@ barplot_choro <- bar_df_top5 %>%
 
 barplot_choro
 ```
-
 
 ```{r choropleth, include=F}
 # Plot Africa choropleth
@@ -574,16 +566,13 @@ print(combined_choro_bar)
 # )
 ```
 
-
 # Professional Training
 
 Professional training characteristics were examined to describe the educational qualifications, accreditation pathways, years since specialty accreditation, and current professional positions of participating surgeons.
 
-
 ## Qualification
 
 Respondents reported a range of professional qualifications, reflecting differences in educational and specialty training backgrounds. The distribution of qualifications is presented in Figure 5.
-
 
 ```{r qualification, echo=F}
 # Calculate qualification
@@ -625,7 +614,6 @@ qualification_bar
 Survey respondents reported accreditation through different professional bodies. The distribution of accreditation bodies is presented in Figure 6, illustrating the diversity of specialty accreditation pathways represented within the sample.
 
 Differences in national training and accreditation systems should be considered when comparing qualifications across countries.
-
 
 ```{r accreditation_barplot, echo=F}
 # Calculate accreditation
@@ -780,7 +768,6 @@ yrs_practice_stats <- df %>%
 yrs_practice_stats
 ```
 
-
 ```{r box-whisker_plot, include=F}
 # Create boxplot of years in practice
 yrs_practice_boxplot <- df %>%
@@ -827,7 +814,6 @@ yrs_practice_boxplot
 ## Professional Training Background
 
 Table 2 summarizes professional qualifications, accreditation bodies, and periods of specialty accreditation among respondents. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
-
 
 ```{r professional_table, echo=F}
 # Group specialty accreditation years
@@ -1025,7 +1011,6 @@ gt_training_table
 
 ```
 
-
 ## Current Professional Position
 
 Respondents occupied a range of professional positions at the time of the survey. The distribution of reported positions is presented in Table 3 and Figure 8.
@@ -1109,7 +1094,6 @@ gt_position_table
 # gtsave(gt_position_table, here("images/gt_current_professional_position.png"))
 ```
 
-
 ```{r position_barplot,echo=F}
 # Calculate position
 position_bar <- df %>% 
@@ -1150,7 +1134,6 @@ position_bar
 Respondents reported practicing across several plastic and reconstructive surgery subspecialties, reflecting the range of clinical services represented within the surveyed workforce.
 
 The distribution of subspecialties is presented in Figure 9. As respondents could select multiple subspecialties, the reported percentages represent the proportion of respondents identifying with each area of practice and are not expected to total 100%.
-
 
 ```{r factorize_subspecialty, echo=F}
 # Extract unique subspecialties from each answer
@@ -1303,13 +1286,11 @@ facility_table <- facility_counts %>%
 facility_table
 ```
 
-
 ## Facility Characteristics
 
 Reported healthcare facilities differed in geographic setting, institutional level, and ownership structure.
 
 Table 5 summarizes the distribution of unique reported facilities across urban and rural settings, healthcare facility levels, and ownership categories. These characteristics provide context for understanding the institutional environments in which participating surgeons practice.
-
 
 ```{r include=F}
 # Create one record per unique facility
@@ -1461,7 +1442,7 @@ gt_table
 #gtsave(gt_table, here("images/gt_participants_characteristics.png"))
 ```
 
-## Facility Distribution by level and Ownership 
+## Facility Distribution by level and Ownership
 
 The distribution of facility ownership across healthcare facility levels is presented in Figure 10.
 
@@ -1560,7 +1541,6 @@ facility_bar <- facility_count %>%
 facility_bar
 
 ```
-
 
 ## Urban vs. Rural Facility Distribution by Country
 
@@ -1668,7 +1648,6 @@ The distribution of the number of facilities associated with individual responde
 
 These results describe the extent to which participating surgeons practice across multiple healthcare institutions and provide additional context for interpreting facility-level reporting within the survey.
 
-
 ```{r facilities_plot, echo=F}
 # Visualize number of facilities
 facility <- df %>% 
@@ -1759,5 +1738,93 @@ num_facility <- df %>%
 num_facility
 ```
 
+# Workforce Profile
 
+## Staffing Numbers per Facility
 
+```{r staffing_table, echo=F}
+# Create function
+format_staffing <- function(x) {
+
+  # Remove missing values
+  x <- x[!is.na(x)]
+
+  # If all values are missing
+  if (length(x) == 0) return("NR")
+
+  # If only one respondent reported a value
+  if (length(x) == 1) {
+    return(as.character(x))
+  }
+
+  # If multiple respondents reported values
+  median_value <- median(x)
+  min_value <- min(x)
+  max_value <- max(x)
+
+  # If all respondents agree, show only the value
+  if (min_value == max_value) {
+    return(as.character(median_value))
+  }
+
+  # Otherwise, show median (minimum–maximum)
+  paste0(
+    median_value,
+    " (", min_value, "–", max_value, ")"
+  )
+}
+
+# Facility-level staffing summary
+facility_staffing <- merged_df %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    n_respondents = n(),
+
+    prs_surgeons = format_staffing(num_prs_surgeons),
+    prs_trainees = format_staffing(num_prs_trainees),
+    ot_nurses = format_staffing(num_ot_nurses),
+    physiotherapists = format_staffing(num_physiotherapists),
+
+    .groups = "drop"
+  ) %>%
+  arrange(facility_country, facility_name)
+
+# Create table grouped by country
+facility_staffing %>%
+  gt(groupname_col = "facility_country") %>%
+  cols_label(
+    facility_name = "Facility",
+    n_respondents = "Respondents (n)",
+    prs_surgeons = "PRS surgeons",
+    prs_trainees = "PRS trainees",
+    ot_nurses = "OT nurses",
+    physiotherapists = "Physiotherapists"
+  ) %>%
+  tab_header(
+    title = "Reported Surgical Workforce by Facility and Country",
+    subtitle = "Facility-level workforce estimates"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = -facility_name
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+  tab_options(
+    table.font.size = px(12),
+    data_row.padding = px(5),
+    row_group.font.weight = "bold",
+    column_labels.font.weight = "bold"
+  ) %>%
+  tab_source_note(
+    source_note = paste(
+      "For facilities with multiple valid reports,",
+      "values represent median (minimum–maximum).",
+      "For facilities with one valid report,",
+      "the reported count is shown directly.",
+      "Staffing counts were not independently verified."
+    )
+  )
+```

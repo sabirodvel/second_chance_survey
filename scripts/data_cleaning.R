@@ -347,7 +347,10 @@ clean_facilities <- raw_data_facilities %>%
       facility_name == "Worabe Comprehensive Specialized Hospital" & facility_ownership == "ngo" ~ "public",
       facility_name == "Yekatit 12 Hospital Medical College" & facility_ownership %in% c("mission", "military") ~ "public",
       TRUE ~ facility_ownership)
-  )
+  ) %>% 
+  # Remove double facility name (Kampala & Kayunga)
+  filter(!(submission_id == 874789331 & index == 28))
+
 
 # # Flag a response containing two facility names; do not drop it blindly.
 # facilities_needing_split <- clean_facilities %>%
@@ -401,7 +404,7 @@ merged_data <- clean_cv_data %>%
 saveRDS(
   clean_cv_data, here("data/clean_data_20261105.rds")
 )
-# 
+# Save RDS
 saveRDS(
   merged_data, here("data/clean_merged_20261105.rds")
 )
