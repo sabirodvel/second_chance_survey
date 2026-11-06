@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 11/04/2026
+## Updated: 11/05/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -52,8 +52,12 @@ anonymous_data <- raw_data %>%
   # Drop test entry while keeping NAs
   filter(is.na(country_practice) | country_practice != "Switzerland")
 
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Cleaning columns ----
+## Clean main dataframe ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Cleaning columns ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Drop columns not used or just info
 clean_data <- anonymous_data %>% 
@@ -85,7 +89,7 @@ clean_data <- anonymous_data %>%
   ) 
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Filter for weeding questions ----
+### Filter for weeding questions ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Define countries in Sub-Saharan Africa
 ssa_countries <- c(
@@ -111,7 +115,7 @@ consent_ssa <- clean_data %>%
   )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Clean variables ----
+### Clean variables ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Clean the categorical variables
 clean_cv_data <- consent_ssa %>% 
@@ -166,7 +170,11 @@ clean_cv_data <- consent_ssa %>%
 )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Clean facility names ----
+# Clean facility data ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Clean facility names ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Explicit duplicate mappings
 facility_map <- c(
@@ -277,6 +285,12 @@ clean_facilities <- raw_data_facilities %>%
   mutate(
     facility_name_original = facility_name,
     facility_name = str_squish(facility_name),
+    # Standardize country names
+    facility_country = case_when(
+      str_to_lower(str_squish(facility_country)) == "dr congo" ~ "DR Congo",
+      str_to_lower(str_squish(facility_country)) == "côte d’ivoire" ~ "Côte d’Ivoire",
+      TRUE ~ str_to_title(str_squish(facility_country))
+    ),
     # Standarize duplicate facility names
     facility_name = coalesce(
       unname(facility_map[str_to_lower(facility_name)]), facility_name
@@ -387,5 +401,5 @@ merged_data <- clean_cv_data %>%
 # )
 # 
 # saveRDS(
-#   merged_data, here("data/clean_merged_20261104.rds")
+#   merged_data, here("data/clean_merged_20261105.rds")
 # )

@@ -1,0 +1,1753 @@
+---
+title: "2nd Chance Survey: Descriptive Analysis"
+author: "Sabina Rodriguez"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: simplex
+    toc: yes
+    toc_float:
+      collapsed: true
+editor_options: 
+  chunk_output_type: inline
+  markdown: 
+    wrap: none
+---
+
+# Report purpose
+
+This report presents the descriptive findings of the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of participating plastic and reconstructive surgeons in Sub-Saharan Africa (SSA).
+
+The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning.
+
+Findings reflect the participating respondents and the facilities they reported and should not be interpreted as representative of the entire plastic surgery workforce in SSA.
+
+```{r global_chunk options, echo=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+```{r initial_setup}
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(here,
+               tidyverse, 
+               janitor, 
+               lubridate, 
+               stringr, 
+               gt, 
+               readxl, 
+               purrr, 
+               writexl, 
+               digest,
+               sf,
+               countrycode,
+               rnaturalearth,
+               rnaturalearthdata,
+               patchwork,
+               purrr,
+               scales
+               )
+```
+
+```{r dataset_load, include = F}
+# Load data (consent and ssa)
+df <- read_rds(here("data/clean_data_20261104.rds"))
+
+merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
+```
+
+# Respondent Characteristics
+
+## Age and Gender
+
+The demographic composition of survey respondents was examined according to age group and gender. Together, these characteristics provide an overview of the age and gender representation within the participating surgical workforce.
+
+### Age Distribution
+
+Respondents represented multiple age groups, indicating variation in career stages among participating surgeons. The age distribution is presented in Figure 1, highlighting the relative representation of surgeons across age categories.
+
+
+```{r age_group, echo = F}
+# Calculate age group counts and percentages
+age_count <- df %>%
+  count(age_group, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = pct_label,
+    label_color = if_else(percentage >= 15, "white", "black")
+  )
+
+# Total number of surgeons
+total_age_n <- sum(age_count$n, na.rm = TRUE)
+
+# Graph barplot
+age_group_bar <- age_count %>%
+  ggplot(aes(
+    x = age_group,
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = label, color = label_color),
+    vjust = 1.5,
+    size = 3,
+    show.legend = FALSE
+  ) +
+  scale_color_identity() +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Age Groups",
+    x = "Age Group",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+age_group_bar
+```
+
+### Gender Distribution
+
+The gender distribution of respondents is presented in Figure 2. Differences in the representation of gender categories within the sample provide context for examining the demographic composition of the participating workforce.
+
+
+```{r gender, echo=F}
+# Calculate age group counts and percentages
+gender_count <- df %>%
+  count(gender, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = pct_label,
+    label_color = if_else(percentage >= 60, "white", "black")
+  )
+
+# Total number of surgeons
+total_gender_n <- sum(gender_count$n, na.rm = TRUE)
+
+# Calculate age groups
+gender_bar <- gender_count %>% 
+  ggplot(aes(
+    x = gender,
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = label, color = label_color),
+    vjust = 1.5,
+    size = 3,
+    show.legend = FALSE
+  ) +
+  scale_color_identity() +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Gender",
+    x = "Gender",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+gender_bar
+```
+
+### Participant Characteristics
+
+Table 1 summarizes respondents' demographic characteristics and countries of practice. Age, gender, and geographic distributions are reported as frequencies and percentages, with denominators based on available responses for each characteristic.
+
+
+```{r}
+# Section one (header)
+.build_section <- function(df, var, section_label, digits = 1,
+                           include_na_row = FALSE, na_label = "Not reported/applicable") {
+  v <- df[[var]]
+
+  # normalize to character; treat blanks as NA
+  v_chr <- if (is.factor(v)) as.character(v) else as.character(v)
+  v_chr <- ifelse(str_trim(v_chr) == "", NA_character_, v_chr)
+
+  # denominator: non-missing values in this section
+  denom <- sum(!is.na(v_chr))
+
+  # counts for non-missing
+  items <- tibble(value = v_chr)  %>% 
+    filter(!is.na(value)) %>%
+    count(value, name = "n") %>%
+    arrange(desc(n), value) %>%
+    mutate(
+      pct = n / denom,
+      display = sprintf("%s (%s)", n, percent(pct, accuracy = 10^-digits)),
+      row_type = "item",
+      label = as.character(value)
+    ) %>%
+    select(row_type, label, display)
+
+  # optional NA row (excluded from denominator)
+  if (include_na_row && any(is.na(v_chr))) {
+    na_n <- sum(is.na(v_chr))
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        label = na_label,
+        display = sprintf("%s (%s)", na_n, percent(na_n / (denom + na_n), accuracy = 10^-digits))
+      )
+    )
+  }
+
+  # section header row
+  header <- tibble(
+    row_type = "section",
+    label    = sprintf("%s, n (%%)", section_label),
+    display  = sprintf("N = %s participants", comma(denom))
+  )
+
+  bind_rows(header, items)
+}
+
+# ----- Build the whole profile table 
+make_profile_table_gt <- function(
+  df,
+  sections = c(
+    age_group             = "Age Group",
+    gender                = "Gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,      # set TRUE if you want an explicit NA row per section
+  title = "Participant demographics",# table title (left)
+  overall_n_right = TRUE       # show overall N on the far right of the table title
+) {
+  # assemble all sections (stacked)
+  body <- map2_dfr(names(sections), unname(sections), ~
+    .build_section(df, var = .x, section_label = .y, digits = digits, include_na_row = include_na_row)
+  )
+
+  # little helper for visual indent
+  body <- body %>%
+    mutate(
+      Label = ifelse(row_type == "item", paste0("  ", label), label),
+      `n (%)` = display
+    ) %>%
+    select(Label, `n (%)`, row_type)
+
+  # overall N (optional, in the title area)
+  overall_tag <- if (overall_n_right) paste0("N = ", scales::comma(nrow(df)), " participants") else NULL
+
+  gt_tbl <- body %>%
+    gt() %>%
+    cols_hide(columns = row_type) %>%
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+    # style section header rows
+    tab_style(
+      style = list(cell_text(weight = "bold")),
+      locations = cells_body(rows = row_type == "section", columns = "Label")
+    ) %>%
+    tab_style(
+      style = list(cell_text(weight = "bold"), cell_text(align = "right")),
+      locations = cells_body(rows = row_type == "section", columns = "n (%)")
+    ) %>%
+    # add subtle indentation to item rows
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(rows = row_type == "item", columns = "Label")
+    ) %>%
+    # thin row separators between sections
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+    # draw a light rule above each new section
+    tab_style(
+      style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+    cols_label(Label = md(""), `n (%)` = md(""))
+
+  gt_tbl
+}
+
+# Make table using gt 
+gt_table <- make_profile_table_gt(
+  df,
+  sections = c(
+    # add more or reorder as you like:
+    age_group             = "Patients (age groups)",
+    gender                = "Patients Gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Participant Characteristics",
+  overall_n_right = TRUE
+)
+
+gt_table
+
+# # Save Table
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+
+### Age and Gender Distribution
+
+The combined age and gender distribution is presented in Figure 3. This analysis examines how age groups are represented among male and female respondents, providing additional insight into the demographic composition of participating surgeons.
+
+
+```{r demo_pyramid, echo=F}
+# Calculate counts and percentages by age group and gender
+pyramid_data <- df %>%
+  filter(
+    !is.na(age_group),
+    !is.na(gender),
+    gender %in% c("Male", "Female")
+  ) %>%
+  count(age_group, gender, name = "n") %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    plot_n = if_else(
+      gender == "Male",
+      -n,
+      n
+    ),
+    pct_label = sprintf("%.1f%%", percentage)
+  )
+
+# Create demographic pyramid
+demographic_pyramid <- pyramid_data %>%
+  ggplot(aes(
+    x = age_group,
+    y = plot_n,
+    fill = gender
+  )) +
+  geom_col(width = 0.85) +
+  geom_text(
+    aes(
+      label = pct_label,
+      hjust = if_else(plot_n < 0, 1.1, -0.1)
+    ),
+    size = 5,
+    show.legend = FALSE
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    labels = function(x) abs(x),
+    expand = expansion(mult = 0.15)
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Male" = "darkred",
+      "Female" = "orange"
+    )
+  ) +
+  labs(
+    title = "Age and Gender Distribution of Surgeons",
+    x = "Age Group",
+    y = "Number of Surgeons",
+    fill = "Gender"
+  ) +
+  theme_minimal(base_size = 20) +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+demographic_pyramid
+
+# Save the graph
+# ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
+```
+
+
+## Country of practice
+
+Survey respondents reported practicing across multiple countries in Sub-Saharan Africa, demonstrating the geographic reach of the participating workforce.
+
+The geographic distribution of respondents is presented in Figure 4. The accompanying country-level comparison highlights the five countries contributing the largest numbers of reported surgeons.
+
+Variation in participation across countries should be considered when interpreting the results, as the number of respondents may reflect differences in survey reach and participation rather than the underlying distribution of plastic surgeons across the region.
+
+```{r prep_country_practice, include=F}
+# View the countries
+# unique(df$country_currently)
+# unique(df$country_practice)
+
+# Extract unique countries from each column
+clean_country_practice <- df %>% 
+  separate_rows(country_currently, sep = ";") %>% 
+  mutate(country_currently = str_trim(country_currently))
+
+# Build a vector of valid country names using the countrycode package
+valid_countries <- unique(countrycode::codelist$country.name.en)  # Standard country name
+
+# Count respondents by country
+country_counts <- clean_country_practice %>% 
+  mutate(
+    iso_a3 = case_when(
+      country_currently == "cote_divoire" ~ "CIV",
+      country_currently == "democratic_republic_of_the_congo" ~ "COD",
+      TRUE ~ countrycode(
+        str_replace_all(country_currently, "_", " "),
+        origin = "country.name",
+        destination = "iso3c"
+      )
+    )
+  ) %>%
+  filter(!is.na(iso_a3)) %>%
+  count(country_currently, iso_a3, name = "country_count") %>%
+  arrange(desc(country_count))
+
+# Retrieve African country boundaries
+africa <- ne_countries(
+  continent = "Africa",
+  scale = "medium",
+  returnclass = "sf"
+)
+
+# Join survey counts to map
+africa_data <- africa %>%
+  left_join(
+    country_counts,
+    by = c("adm0_a3" = "iso_a3")
+  )
+
+```
+
+
+```{r coutry_plot, include=F}
+# Calculate total number of country counts
+total_n <- sum(country_counts$country_count, na.rm = TRUE)
+
+# Create the count table 
+bar_df_top5 <- country_counts %>%
+  arrange(desc(country_count), iso_a3) %>%
+  slice_head(n = 5) %>%
+  mutate(
+    percentage  = 100 * country_count / total_n,
+    pct_label   = sprintf("%.1f%%", percentage),
+    # choose label color based on how dark the bar will be
+    label_color = if_else(percentage >= 12, "white", "black")  # tweak threshold if needed
+  )
+
+barplot_choro <- bar_df_top5 %>%
+  ggplot(aes(
+    x = reorder(country_currently, percentage),
+    y = percentage, fill = percentage)) +
+  geom_col(width = 0.8) +
+  # place text just inside the right edge; color varies by bar brightness
+  geom_text(aes(label = pct_label, color = label_color),
+            hjust = 0.98, vjust = 0.5, size = 3.2, fontface = "bold") +
+  scale_fill_gradientn(colors = RColorBrewer::brewer.pal(9, "YlOrRd")) +
+  scale_color_identity() +  # use the colors already in the data
+  scale_x_discrete(
+  labels = stringr::str_to_title) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.02))) +
+  labs(title = "Top 5 Contributors to Total PRS") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks  = element_blank(),
+    axis.title  = element_blank(),
+    legend.position = "none",
+    panel.grid  = element_blank(),
+    plot.title.position = "plot",                 # <-- anchor to plot left edge
+    plot.title = element_text(size = 12, face = "bold", hjust = 0, margin = margin(b = 6))
+  )
+
+barplot_choro
+```
+
+
+```{r choropleth, include=F}
+# Plot Africa choropleth
+africa_map <- ggplot() +
+  # All African countries: white by default
+  geom_sf(
+    data = africa,
+    fill = "white",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Countries with survey data only
+  geom_sf(
+    data = africa_data %>% filter(!is.na(country_count)),
+    aes(fill = country_count),
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Northern Africa: excluded from the study
+  geom_sf(
+    data = africa %>% filter(subregion == "Northern Africa"),
+    fill = "grey85",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1,
+    name = "PRS Count",
+    breaks = c(1,5,9,13),
+    limits = c(1,13)
+  ) +
+  labs(
+    title = "Geographic Distribution of Plastic Surgeons",
+    subtitle = "Countries outside SSA are shown in gray"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+
+africa_map
+```
+
+The combined figure places the five leading contributing countries alongside the regional map, allowing stakeholders to see both the broad footprint and the concentration of responses. Together, these visuals are helpful for discussing geographic coverage and possible gaps.
+
+```{r combine_barpleth, echo=F}
+# Combine both barplot with choropleth
+combined_choro_bar <-
+  africa_map +
+  inset_element(barplot_choro,
+                left = 0.01,
+                bottom = 0.10,
+                right = 0.50,
+                top = 0.52)
+
+print(combined_choro_bar)
+
+# ggsave(filename = here("images/combined_map_bar.png"),
+#        plot = combined_choro_bar,
+#        height = 10,
+#        width = 13,
+#        units = "in")
+
+# ggsave(
+#   filename = here::here("images/combined_choro_bar.eps"),
+#   plot = combined_choro_bar,
+#   height = 10,
+#   width = 13,
+#   units = "in",
+#   dpi = 300,
+#   bg = "white",
+#   device = "eps"
+# )
+```
+
+
+# Professional Training
+
+Professional training characteristics were examined to describe the educational qualifications, accreditation pathways, years since specialty accreditation, and current professional positions of participating surgeons.
+
+
+## Qualification
+
+Respondents reported a range of professional qualifications, reflecting differences in educational and specialty training backgrounds. The distribution of qualifications is presented in Figure 5.
+
+
+```{r qualification, echo=F}
+# Calculate qualification
+qualification_bar <- df %>% 
+  count(qualification) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(qualification, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Qualification",
+    x = "Qualification",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+qualification_bar
+```
+
+## Accreditation
+
+Survey respondents reported accreditation through different professional bodies. The distribution of accreditation bodies is presented in Figure 6, illustrating the diversity of specialty accreditation pathways represented within the sample.
+
+Differences in national training and accreditation systems should be considered when comparing qualifications across countries.
+
+
+```{r accreditation_barplot, echo=F}
+# Calculate accreditation
+accreditation_bar <- df %>% 
+  count(accreditation_body) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(accreditation_body, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Accreditation",
+    x = "Accreditation",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+accreditation_bar
+```
+
+## Years Since Specialty Accreditation
+
+The number of years since specialty accreditation was examined as an indicator of respondents' professional experience following specialty qualification.
+
+The distribution is presented in Figure 7, with the median indicating the midpoint of reported years since accreditation. Descriptive statistics, including the mean, standard deviation, median, and interquartile range, provide additional information about variation in experience.
+
+This measure represents time since specialty accreditation and may not correspond directly to total years of clinical practice.
+
+```{r yrs_practice, echo=F}
+# Prep data
+practice_df <- df %>% 
+  filter(
+    !is.na(year_prs_accredited),
+    year_prs_accredited >= 0,
+    year_prs_accredited < 50
+  )
+
+# Calculate median
+median_practice <- median(practice_df$year_prs_accredited)
+
+# Create histogram of years in practice
+yrs_practice <- practice_df %>% 
+  
+  ggplot(aes(
+    x = year_prs_accredited,
+    fill = after_stat(count)
+    )) +
+    
+  # Histogram
+  geom_histogram(
+    aes(fill = after_stat(count)),
+    binwidth = 1,
+    boundary = 0,
+    color = "white",
+    alpha = 0.85
+  ) +
+    
+  # Kernel density curve
+  geom_density(
+    aes(y = after_stat(density * n * 1)),
+    color = "grey",
+    linewidth = 0.75,
+    adjust = 1,
+    fill = NA
+  )  +
+  
+  # Median years
+  geom_vline(
+  xintercept = median(
+   df$year_prs_accredited,
+    na.rm = TRUE
+  ),
+  linetype = "dashed",
+  color = "#C0392B",
+  linewidth = 0.8
+ ) +
+    
+  # Frequency labels above bars
+  geom_text(
+  stat = "bin",
+  binwidth = 1,
+  boundary = 0,
+  aes(label = ifelse(
+    after_stat(count) > 0,
+    paste0("n = ", after_stat(count)),
+    "")),
+  vjust = -1,
+  size = 2.5
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Years Since Specialty Accreditation",
+    x = "Years Since Specialty Accreditation",
+    y = "Number of Surgeons",
+    caption = paste0(
+      "Grey solid curve: kernel density estimate (scaled to frequency). ",
+      "Red dashed line: median (",
+      round(median_practice, 1),
+      " years)."
+    )
+  ) +
+  scale_x_continuous(breaks = seq(0,25, by = 5)) +
+  scale_y_continuous(breaks = seq(0,20, by = 5)) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.4)
+  )
+
+yrs_practice
+
+# Save graph
+# ggsave(filename = here("images/histo_yrs_practice.png"), plot = yrs_practice,
+#                        height = 10, width = 13, bg = "white")
+```
+
+```{r yrs_practice_stats, include=F}
+# Calcultate summary stats
+yrs_practice_stats <- df %>% 
+ summarise(
+    n = sum(!is.na(x = year_prs_accredited)),
+    mean = mean(year_prs_accredited, na.rm = TRUE),
+    sd = sd(year_prs_accredited, na.rm = TRUE),
+    median = median(year_prs_accredited, na.rm = TRUE),
+    q1 = quantile(year_prs_accredited, 0.25, na.rm = TRUE),
+    q3 = quantile(year_prs_accredited, 0.75, na.rm = TRUE),
+    min = min(year_prs_accredited, na.rm = TRUE),
+    max = max(year_prs_accredited, na.rm = TRUE)
+  )
+
+yrs_practice_stats
+```
+
+
+```{r box-whisker_plot, include=F}
+# Create boxplot of years in practice
+yrs_practice_boxplot <- df %>%
+  filter(
+    !is.na(year_prs_accredited)) %>%
+  ggplot(aes(
+    x = "",
+    y = year_prs_accredited
+  )) +
+  geom_boxplot(
+    fill = "#FD8D3C",       # Orange from YlOrRd palette
+    color = "black",
+    width = 0.3,
+    linewidth = 0.6,
+    outlier.color = "#BD0026",
+    outlier.size = 2
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    shape = 18,
+    size = 3,
+    color = "#BD0026"
+  ) +
+  labs(
+    title = "Distribution of Years in Practice",
+    x = NULL,
+    y = "Years in Practice"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+yrs_practice_boxplot
+
+```
+
+## Professional Training Background
+
+Table 2 summarizes professional qualifications, accreditation bodies, and periods of specialty accreditation among respondents. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
+
+
+```{r professional_table, echo=F}
+# Group specialty accreditation years
+training_df <- df %>% 
+  mutate(
+    accreditation_year_group = case_when(
+      as.numeric(as.character(accreditation_year)) < 2000 ~ "Pre-2000",
+      between(as.numeric(as.character(accreditation_year)), 2000, 2009) ~ "2000-2009",
+      between(as.numeric(as.character(accreditation_year)), 2010, 2019) ~ "2010-2019",
+      as.numeric(as.character(accreditation_year)) >= 2020 ~ "2020+",
+      TRUE ~ NA_character_
+    ),
+    accreditation_year_group = factor(
+      accreditation_year_group,
+      levels = c(
+        "Pre-2000",
+        "2000-2009",
+        "2010-2019",
+        "2020+"
+      )
+    )
+  )
+
+# Build individual sections
+.build_training_section <- function(
+  df,
+  var,
+  section_label,
+  digits = 1,
+  include_na_row = FALSE
+) {
+
+  v <- as.character(df[[var]])
+  v <- na_if(str_trim(v), "")
+
+  denom <- sum(!is.na(v))
+
+  items <- tibble(value = v) %>%
+  filter(!is.na(value)) %>%
+  count(value, name = "N") %>%
+  mutate(
+    Percent = round(100 * N / denom, digits),
+    row_type = "item",
+    Label = value
+  ) %>%
+  select(row_type, Label, N, Percent)
+
+  # Sort accreditation years chronologically
+  if (var == "accreditation_year_group") {
+    items <- items %>%
+      arrange(match(
+        Label,
+        c("Pre-2000", "2000-2009", "2010-2019", "2020+")
+      ))
+  } else {
+    items <- items %>%
+      arrange(desc(N), Label)
+  }
+
+  # Optional missing-value row
+  if (include_na_row && any(is.na(v))) {
+    na_n <- sum(is.na(v))
+
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        Label = "Not reported/applicable",
+        N = na_n,
+        Percent = round(100 * na_n / length(v), digits)
+      )
+    )
+  }
+
+  header <- tibble(
+    row_type = "section",
+    Label = section_label,
+    N = denom,
+    Percent = NA_real_
+  )
+
+  bind_rows(header, items)
+}
+
+
+# Build complete professional training table
+make_training_table_gt <- function(
+  df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+) {
+
+  body <- map2_dfr(
+    names(sections),
+    unname(sections),
+    ~ .build_training_section(
+      df,
+      var = .x,
+      section_label = .y,
+      digits = digits,
+      include_na_row = include_na_row
+    )
+  )
+
+  gt_tbl <- body %>%
+    gt() %>%
+    cols_hide(columns = row_type) %>%
+    tab_header(
+      title = md(paste0("**", title, "**")),
+      subtitle = paste0(
+        "Total sample: N = ",
+        scales::comma(nrow(df))
+      )
+    ) %>%
+    cols_label(
+      Label = "Characteristic",
+      N = "N",
+      Percent = "%"
+    ) %>%
+    fmt_number(
+      columns = Percent,
+      decimals = digits
+    ) %>%
+    sub_missing(
+      columns = Percent,
+      missing_text = ""
+    ) %>%
+    fmt_number(
+      columns = N,
+      decimals = 0,
+      use_seps = TRUE
+    ) %>%
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(
+        rows = row_type == "item",
+        columns = Label
+      )
+    ) %>%
+    tab_style(
+      style = cell_borders(
+        sides = "top",
+        color = "grey85",
+        weight = px(1)
+      ),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    cols_align(
+      align = "right",
+      columns = c(N, Percent)
+    ) %>%
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    )
+
+  gt_tbl
+}
+
+# Make table
+gt_training_table <- make_training_table_gt(
+  training_df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+)
+
+gt_training_table
+
+# Save Table
+# gtsave(gt_training_table, here("images/gt_training.png"))
+
+```
+
+
+## Current Professional Position
+
+Respondents occupied a range of professional positions at the time of the survey. The distribution of reported positions is presented in Table 3 and Figure 8.
+
+These findings describe the professional roles represented within the sample and provide context for understanding variation in clinical responsibilities and institutional appointments.
+
+```{r position_table, echo=F}
+# -----------------------------------------
+# Calculate frequencies and percentages
+# -----------------------------------------
+
+valid_n <- sum(!is.na(df$position))
+
+position_summary <- df %>%
+  count(position, name = "N", .drop = FALSE) %>%
+  mutate(
+    Percent = if (valid_n > 0) {
+      round(100 * N / valid_n, 1)
+    } else {
+      NA_real_
+    },
+    Label = as.character(position)
+  ) %>%
+  select(Label, N, Percent)
+
+# -----------------------------------------
+# Create GT table
+# -----------------------------------------
+
+gt_position_table <- position_summary %>%
+  gt() %>%
+
+  tab_header(
+    title = md("**Current Professional Position**"),
+    subtitle = paste0(
+      "Total sample: N = ",
+      scales::comma(nrow(df))
+    )
+  ) %>%
+
+  cols_label(
+    Label = "Professional Position",
+    N = "N",
+    Percent = "%"
+  ) %>%
+
+  fmt_number(
+    columns = N,
+    decimals = 0,
+    use_seps = TRUE
+  ) %>%
+
+  fmt_number(
+    columns = Percent,
+    decimals = 1
+  ) %>%
+
+  sub_missing(
+    columns = Percent,
+    missing_text = ""
+  ) %>%
+
+  cols_align(
+    align = "right",
+    columns = c(N, Percent)
+  ) %>%
+
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    table.border.top.color = "grey70",
+    table.border.top.width = px(1),
+    table.border.bottom.color = "grey70",
+    table.border.bottom.width = px(1)
+  )
+
+# Display table
+gt_position_table
+
+# Save gttable
+# gtsave(gt_position_table, here("images/gt_current_professional_position.png"))
+```
+
+
+```{r position_barplot,echo=F}
+# Calculate position
+position_bar <- df %>% 
+  count(position) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(position, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Distribution of Position",
+    x = "Position",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+
+position_bar
+```
+
+## Subspecialty
+
+Respondents reported practicing across several plastic and reconstructive surgery subspecialties, reflecting the range of clinical services represented within the surveyed workforce.
+
+The distribution of subspecialties is presented in Figure 9. As respondents could select multiple subspecialties, the reported percentages represent the proportion of respondents identifying with each area of practice and are not expected to total 100%.
+
+
+```{r factorize_subspecialty, echo=F}
+# Extract unique subspecialties from each answer
+clean_subspecialty <- df %>% 
+  separate_rows(subspecialty, sep = ";") %>% 
+  mutate(subspecialty = str_trim(subspecialty))
+
+# Factorize subspecialty
+clean_subspecialty <- clean_subspecialty %>% 
+  mutate(
+    # Clean other
+    subspecialty = case_when(
+      subspecialty == "other" & subspecialty_other == 1 ~ 
+        "general_reconstructive",
+      TRUE ~ subspecialty),
+    # Factorize subspecialties
+    subspecialty = factor(
+      subspecialty,
+      levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
+                 "aesthetic", "pediatric", "oncoplastic", "general_reconstructive",
+                 "other"),
+      labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
+                 "Trauma reconstruction", "Aesthetic plastic surgery", 
+                 "Pediatric plastic surgery", "Oncoplastic surgery",
+                 "General reconstructive surgery", "Other"))
+  )
+
+```
+
+```{r subspeciality_barplot, echo=F}
+# Horizontal Bar Chart
+subspecialty_bar <- clean_subspecialty %>%
+
+  # Calculate subspecialty frequencies
+  count(subspecialty) %>%
+  mutate(
+    percent = 100 * n / nrow(df)
+  ) %>%
+
+  # Graph the plot
+  ggplot(aes(
+    x = reorder(subspecialty, n),
+    y = n,
+    fill = n
+  )) +
+
+  geom_col() +
+
+  # Add percentage labels inside bars
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    hjust = 1.2,
+    size = 3.5,
+    color = "black"
+  ) +
+
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+
+  # Wrap long subspecialty labels
+  scale_x_discrete(
+    labels = \(x) stringr::str_wrap(x, width = 15)
+  ) +
+
+  coord_flip() +
+
+  labs(
+    title = "Distribution of Subspecialty",
+    x = "Subspecialty",
+    y = "Number of Surgeons",
+    caption = paste(
+      "Percentages represent the proportion of respondents",
+      "selecting each subspecialty. Multiple selections permitted."
+    )
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 10),
+    axis.text.x = element_text(
+      hjust = 0.5,
+      vjust = 0.7,
+      size = 8
+    ),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = "grey85",linewidth = 0.4),
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+subspecialty_bar
+```
+
+# Practice Settings
+
+Clinical practice settings were examined to characterize the institutions where respondents reported providing surgical services. The analysis considers facility characteristics, institutional ownership, geographic location, and the number of facilities associated with individual surgeons.
+
+Because individual surgeons may practice at multiple institutions and multiple respondents may report the same facility, facility-level and respondent-level findings are presented separately.
+
+## Facilities Reported by Respondents
+
+Survey respondents identified multiple healthcare facilities where they provided clinical services. The frequency with which each facility was reported is summarized in Table 4.
+
+These results provide an overview of the institutions represented in the survey and the extent to which individual facilities were reported by multiple respondents.
+
+```{r echo=F}
+# Prepare facility counts
+facility_counts <- merged_df %>%
+  mutate(facility_name = str_squish(facility_name)) %>%
+  filter(!is.na(facility_name), facility_name != "") %>%
+  count(facility_name, name = "n") %>%
+  arrange(desc(n), facility_name)
+
+# Calculate unique facilities
+total_facilities <- nrow(facility_counts)
+
+# Create gt table
+facility_table <- facility_counts %>%
+  gt() %>%
+  tab_header(
+    title = md("Facilities Reported by Respondents"),
+    subtitle = paste0("N = ", total_facilities, " unique facilities")
+  ) %>%
+  cols_label(
+    facility_name = "Facility Name",
+    n = "Respondents, n"
+  ) %>%
+  cols_align(
+    align = "right",
+    columns = n
+  ) %>%
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    table.border.top.color = "grey70",
+    table.border.top.width = px(1),
+    table.border.bottom.color = "grey70",
+    table.border.bottom.width = px(1)
+  )
+
+facility_table
+```
+
+
+## Facility Characteristics
+
+Reported healthcare facilities differed in geographic setting, institutional level, and ownership structure.
+
+Table 5 summarizes the distribution of unique reported facilities across urban and rural settings, healthcare facility levels, and ownership categories. These characteristics provide context for understanding the institutional environments in which participating surgeons practice.
+
+
+```{r include=F}
+# Create one record per unique facility
+facility_level_df <- merged_df %>%
+  distinct(
+    facility_name,
+    .keep_all = TRUE
+  )
+```
+
+```{r facility_table, echo=F}
+# Section one (header)
+.build_section <- function(df, var, section_label, digits = 1,
+                           include_na_row = FALSE, na_label = "Not reported/applicable") {
+  v <- df[[var]]
+
+  # normalize to character; treat blanks as NA
+  v_chr <- if (is.factor(v)) as.character(v) else as.character(v)
+  v_chr <- ifelse(str_trim(v_chr) == "", NA_character_, v_chr)
+
+  # denominator: non-missing values in this section
+  denom <- sum(!is.na(v_chr))
+
+  # counts for non-missing
+  items <- tibble(value = v_chr)  %>% 
+    filter(!is.na(value)) %>%
+    count(value, name = "n") %>%
+    arrange(desc(n), value) %>%
+    mutate(
+      pct = n / denom,
+      display = sprintf("%s (%s)", n, percent(pct, accuracy = 10^-digits)),
+      row_type = "item",
+      label = as.character(value)
+    ) %>%
+    select(row_type, label, display)
+
+  # optional NA row (excluded from denominator)
+  if (include_na_row && any(is.na(v_chr))) {
+    na_n <- sum(is.na(v_chr))
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        label = na_label,
+        display = sprintf("%s (%s)", na_n, percent(na_n / (denom + na_n), accuracy = 10^-digits))
+      )
+    )
+  }
+
+  # section header row
+  header <- tibble(
+    row_type = "section",
+    label    = sprintf("%s, n (%%)", section_label),
+    display = sprintf("N = %s facilities", comma(denom))
+  )
+
+  bind_rows(header, items)
+}
+
+# ----- Build the whole profile table 
+make_facility_gt <- function(
+  df,
+  sections = c(
+    facility_location_type             = "Urban vs. Rural",
+    facility_level                = "Level of Health Facility",
+    facility_ownership      = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,      # set TRUE if you want an explicit NA row per section
+  title = "Facility Characteristics",# table title (left)
+  overall_n_right = TRUE       # show overall N on the far right of the table title
+) {
+  # assemble all sections (stacked)
+  body <- map2_dfr(names(sections), unname(sections), ~
+    .build_section(df, var = .x, section_label = .y, digits = digits, include_na_row = include_na_row)
+  )
+
+  # little helper for visual indent
+  body <- body %>%
+    mutate(
+      Label = ifelse(row_type == "item", paste0("  ", label), label),
+      `n (%)` = display
+    ) %>%
+    select(Label, `n (%)`, row_type)
+
+  # overall N (optional, in the title area)
+  overall_tag <- if (overall_n_right) {
+  paste0("N = ", scales::comma(nrow(df)), " facilities")
+} else {
+  NULL
+}
+  gt_tbl <- body %>%
+    gt() %>%
+    cols_hide(columns = row_type) %>%
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+    # style section header rows
+    tab_style(
+      style = list(cell_text(weight = "bold")),
+      locations = cells_body(rows = row_type == "section", columns = "Label")
+    ) %>%
+    tab_style(
+      style = list(cell_text(weight = "bold"), cell_text(align = "right")),
+      locations = cells_body(rows = row_type == "section", columns = "n (%)")
+    ) %>%
+    # add subtle indentation to item rows
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(rows = row_type == "item", columns = "Label")
+    ) %>%
+    # thin row separators between sections
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+    # draw a light rule above each new section
+    tab_style(
+      style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+    cols_label(Label = md(""), `n (%)` = md(""))
+
+  gt_tbl
+}
+
+# Make table using gt 
+gt_table <- make_facility_gt(
+  facility_level_df,
+  sections = c(
+    facility_location_type = "Urban vs. Rural",
+    facility_level = "Level of Health Facility",
+    facility_ownership = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Facility Characteristics",
+  overall_n_right = TRUE
+)
+
+gt_table
+
+# # Save Table
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+## Facility Distribution by level and Ownership 
+
+The distribution of facility ownership across healthcare facility levels is presented in Figure 10.
+
+This analysis examines the composition of reported institutions according to their level within the healthcare system and ownership structure, allowing comparison of institutional categories within the surveyed facilities.
+
+```{r facility_barplot, echo=F}
+# COunt unique facilities by level and ownership
+facility_count <- merged_df %>% 
+  distinct(
+    facility_name,
+    facility_level,
+    facility_ownership
+  ) %>%
+  count(
+    facility_level,
+    facility_ownership,
+    name = "n"
+  ) %>%
+  group_by(facility_level) %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage)
+  ) %>%
+  ungroup()
+
+# Total unique facilities
+total_facility_n <- merged_df %>%
+  distinct(facility_name) %>%
+  nrow()
+
+# Graph barplot
+facility_bar <- facility_count %>%
+  ggplot(aes(
+    x = facility_level,
+    y = n,
+    fill = facility_ownership
+  )) +
+  geom_col(
+    position = "stack",
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = pct_label),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    color = "black"
+  ) +
+  scale_color_identity() +
+  scale_fill_brewer(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  scale_x_discrete(
+    limits = c(
+      "district",
+      "provincial",
+      "central",
+      "university",
+      "central university",
+      "provincial central",
+      "provincial university"
+    )
+  ) +
+  scale_y_continuous(
+    breaks = breaks_width(2)
+  ) +
+  labs(
+    title = "Facility Distribution by Level and Ownership Type",
+    subtitle = paste("Total unique facilities:", total_facility_n),
+    x = "Facility Level",
+    y = "Number of Facilities"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.text.x = element_text(
+      angle = 0,
+      hjust = 0.5
+    ),
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    legend.position = "inside",
+    legend.position.inside = c(0.98, 0.98),
+    legend.justification = c(1, 1),
+    legend.background = element_rect(
+      fill = "white",
+      color = NA
+    )
+  )
+
+facility_bar
+
+```
+
+
+## Urban vs. Rural Facility Distribution by Country
+
+The distribution of reported facilities across urban and rural settings varied by country. Figure 11 presents the proportion of facilities classified as urban or rural within each country represented in the facility dataset.
+
+These findings provide a descriptive overview of the geographic settings in which participating surgeons reported practicing.
+
+Differences between countries should be interpreted in relation to the number of facilities reported and the coverage of the survey rather than as direct measures of national surgical service availability.
+
+```{r urban_rural_barplot, echo=F}
+# Count facility and percentages
+facility_country_count <- merged_df %>% 
+  distinct(
+    facility_country,
+    facility_name, 
+    facility_location_type
+  ) %>% 
+  count(
+    facility_country,
+    facility_location_type,
+    name = "n"
+  ) %>% 
+  group_by(facility_country) %>% 
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = if_else(percentage >= 5, pct_label, "")
+  ) %>% 
+  ungroup()
+
+# Total number of unique facilities
+total_facility_n <- merged_df %>%
+  distinct(facility_country, facility_name) %>%
+  nrow()
+
+# Create stacked bar
+facility_location_bar <- facility_country_count %>%
+  ggplot(aes(
+    x = facility_country,
+    y = n,
+    fill = facility_location_type
+  )) +
+  geom_col(
+    position = "fill",
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = label),
+    position = position_fill(vjust = 0.5),
+    size = 3,
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "urban" = "#FEB24C",  # Orange-yellow
+      "rural" = "#F03B20"   # Red-orange
+    ),
+    name = "Facility Location",
+    breaks = c("urban", "rural"),
+    labels = c("Urban", "Rural")
+) +
+  scale_y_continuous(
+    labels = scales::percent,
+    breaks = seq(0, 1, by = 0.2),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  labs(
+    title = "Urban vs. Rural Facility Distribution by Country",
+    subtitle = paste(
+      "Total unique facilities:", total_facility_n
+    ),
+    x = "Country",
+    y = "Percentage of Facilities"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 0,
+      hjust = 0.5
+    ),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.justification = "right",
+    legend.title = element_text(face = "bold")
+  )
+
+facility_location_bar
+```
+
+## Multiple Facilities
+
+Survey respondents reported different patterns of institutional affiliation, including practice at a single facility and practice across multiple facilities.
+
+The proportion of respondents reporting employment or clinical activity at more than one facility is presented in Figure 12.
+
+### Number of Operating Facilities
+
+The distribution of the number of facilities associated with individual respondents is presented in Figure 13.
+
+These results describe the extent to which participating surgeons practice across multiple healthcare institutions and provide additional context for interpreting facility-level reporting within the survey.
+
+
+```{r facilities_plot, echo=F}
+# Visualize number of facilities
+facility <- df %>% 
+  count(multiple_facilities) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(multiple_facilities, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Operate in Multiple Facilities?",
+    x = "Yes or No",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+  
+facility
+```
+
+```{r multiple_facilities, echo=F}
+# Count multiple facilities
+multiple_facilities <- df %>% 
+  mutate(num_facilities = if_else(
+    multiple_facilities == "no", 
+    1,
+    num_facilities
+  )
+)
+
+# Create barplot for multiple facilities
+num_facility <- df %>%
+  filter(!is.na(num_facilities)) %>%
+  count(num_facilities) %>%
+  ggplot(aes(
+    x = factor(num_facilities),
+    y = n,
+    fill = n
+  )) +
+  geom_col(
+    width = 0.7,
+    color = "white"
+  ) +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = -0.5,
+    size = 2.5
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Number of Facilities",
+    x = "Number of Servicing Facilities",
+    y = "Number of Surgeons"
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(5),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "grey85",
+      linewidth = 0.4
+    )
+  )
+
+num_facility
+```
+
+
+

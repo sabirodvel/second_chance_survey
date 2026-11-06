@@ -43,7 +43,7 @@ pacman::p_load(here,
 # Load data (consent and ssa)
 df <- read_rds(here("data/clean_data_20261104.rds"))
 
-merged_df <- read_rds(here("data/clean_merged_20261104.rds"))
+merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
 ```
 
 # Response Rate and Data Completeness
@@ -1207,102 +1207,6 @@ subspecialty_bar <- clean_subspecialty %>%
 subspecialty_bar
 ```
 
-## Number of Operating Facilities
-
-```{r facilities_plot include=F}
-# Visualize number of facilities
-facility <- df %>% 
-  count(multiple_facilities) %>% 
-# Graph the plot  
-  ggplot(aes(
-    x = reorder(multiple_facilities, -n),
-    y = n,
-    fill = n
-  )) +
-  geom_col() +
-  geom_text(
-    aes(label = paste0("n = ", n)),
-    vjust = 1.5,
-    size = 3
-  ) +
-  scale_fill_distiller(palette = "YlOrRd",
-                       direction = 1) +
-  labs(
-    title = "Operate in Multiple Facilities?",
-    x = "Yes or No",
-    y = "Number of Surgeons"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.ticks = element_blank(),
-    axis.title = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
-  
-facility
-```
-
-```{r distribute_facillity_count include=F}
-df <- df %>% 
-  mutate(num_facilities = if_else(
-    multiple_facilities == "no", 
-    1,
-    num_facilities
-  )
-)
-
-```
-
-
-```{r multiple_facilities include=F}
-# Create barplot for multiple facilities
-num_facility <- df %>%
-  filter(!is.na(num_facilities)) %>%
-  count(num_facilities) %>%
-  ggplot(aes(
-    x = factor(num_facilities),
-    y = n,
-    fill = n
-  )) +
-  geom_col(
-    width = 0.7,
-    color = "white"
-  ) +
-  geom_text(
-    aes(label = paste0("n = ", n)),
-    vjust = -0.5,
-    size = 2.5
-  ) +
-  scale_fill_distiller(
-    palette = "YlOrRd",
-    direction = 1
-  ) +
-  labs(
-    title = "Distribution of Number of Facilities",
-    x = "Number of Servicing Facilities",
-    y = "Number of Surgeons"
-  ) +
-  scale_y_continuous(
-    breaks = scales::breaks_width(5),
-    expand = expansion(mult = c(0, 0.1))
-  ) +
-  theme_minimal() +
-  theme(
-    axis.title = element_blank(),
-    legend.position = "none",
-    panel.grid = element_blank(),
-    panel.grid.major.y = element_line(
-      color = "grey85",
-      linewidth = 0.4
-    )
-  )
-
-num_facility
-```
-
-
 # Characteristics by Country
 
 ```{r barplot_function include=F}
@@ -1435,7 +1339,6 @@ facility_level_df <- merged_df %>%
     .keep_all = TRUE
   )
 ```
-
 
 ```{r facility_table include=F}
 # Section one (header)
@@ -1577,3 +1480,312 @@ gt_table
 # # Save Table
 #gtsave(gt_table, here("images/gt_participants_characteristics.png"))
 ```
+
+## Facility Distribution by level and Ownership 
+
+```{r facility_barplot include=F}
+# COunt unique facilities by level and ownership
+facility_count <- merged_df %>% 
+  distinct(
+    facility_name,
+    facility_level,
+    facility_ownership
+  ) %>%
+  count(
+    facility_level,
+    facility_ownership,
+    name = "n"
+  ) %>%
+  group_by(facility_level) %>%
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage)
+  ) %>%
+  ungroup()
+
+# Total unique facilities
+total_facility_n <- merged_df %>%
+  distinct(facility_name) %>%
+  nrow()
+
+# Graph barplot
+facility_bar <- facility_count %>%
+  ggplot(aes(
+    x = facility_level,
+    y = n,
+    fill = facility_ownership
+  )) +
+  geom_col(
+    position = "stack",
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = pct_label),
+    position = position_stack(vjust = 0.5),
+    size = 3,
+    color = "black"
+  ) +
+  scale_color_identity() +
+  scale_fill_brewer(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  scale_x_discrete(
+    limits = c(
+      "district",
+      "provincial",
+      "central",
+      "university",
+      "central university",
+      "provincial central",
+      "provincial university"
+    )
+  ) +
+  scale_y_continuous(
+    breaks = breaks_width(2)
+  ) +
+  labs(
+    title = "Facility Distribution by Level and Ownership Type",
+    subtitle = paste("Total unique facilities:", total_facility_n),
+    x = "Facility Level",
+    y = "Number of Facilities"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.text.x = element_text(
+      angle = 0,
+      hjust = 0.5
+    ),
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    legend.position = "inside",
+    legend.position.inside = c(0.98, 0.98),
+    legend.justification = c(1, 1),
+    legend.background = element_rect(
+      fill = "white",
+      color = NA
+    )
+  )
+
+facility_bar
+
+```
+## Urban vs. Rural Facility Distribution by Country
+
+```{r urban_rural_barplot include=F}
+# Count facility and percentages
+facility_country_count <- merged_df %>% 
+  distinct(
+    facility_country,
+    facility_name, 
+    facility_location_type
+  ) %>% 
+  count(
+    facility_country,
+    facility_location_type,
+    name = "n"
+  ) %>% 
+  group_by(facility_country) %>% 
+  mutate(
+    percentage = 100 * n / sum(n),
+    pct_label = sprintf("%.1f%%", percentage),
+    label = if_else(percentage >= 5, pct_label, "")
+  ) %>% 
+  ungroup()
+
+# Total number of unique facilities
+total_facility_n <- merged_df %>%
+  distinct(facility_country, facility_name) %>%
+  nrow()
+
+# Create stacked bar
+facility_location_bar <- facility_country_count %>%
+  ggplot(aes(
+    x = facility_country,
+    y = n,
+    fill = facility_location_type
+  )) +
+  geom_col(
+    position = "fill",
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = label),
+    position = position_fill(vjust = 0.5),
+    size = 3,
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "urban" = "#FEB24C",  # Orange-yellow
+      "rural" = "#F03B20"   # Red-orange
+    ),
+    name = "Facility Location",
+    breaks = c("urban", "rural"),
+    labels = c("Urban", "Rural")
+) +
+  scale_y_continuous(
+    labels = scales::percent,
+    breaks = seq(0, 1, by = 0.2),
+    expand = expansion(mult = c(0, 0))
+  ) +
+  labs(
+    title = "Urban vs. Rural Facility Distribution by Country",
+    subtitle = paste(
+      "Total unique facilities:", total_facility_n
+    ),
+    x = "Country",
+    y = "Percentage of Facilities"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.ticks = element_blank(),
+    axis.text.x = element_text(
+      angle = 0,
+      hjust = 0.5
+    ),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.justification = "right",
+    legend.title = element_text(face = "bold")
+  )
+
+facility_location_bar
+```
+
+## Multiple Facilities
+
+### Number of Operating Facilities
+
+```{r facilities_plot include=F}
+# Visualize number of facilities
+facility <- df %>% 
+  count(multiple_facilities) %>% 
+# Graph the plot  
+  ggplot(aes(
+    x = reorder(multiple_facilities, -n),
+    y = n,
+    fill = n
+  )) +
+  geom_col() +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = 1.5,
+    size = 3
+  ) +
+  scale_fill_distiller(palette = "YlOrRd",
+                       direction = 1) +
+  labs(
+    title = "Operate in Multiple Facilities?",
+    x = "Yes or No",
+    y = "Number of Surgeons"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    panel.grid = element_blank()
+  )
+  
+facility
+```
+
+```{r multiple_facilities include=F}
+# Count multiple facilities
+multiple_facilities <- df %>% 
+  mutate(num_facilities = if_else(
+    multiple_facilities == "no", 
+    1,
+    num_facilities
+  )
+)
+
+# Create barplot for multiple facilities
+num_facility <- df %>%
+  filter(!is.na(num_facilities)) %>%
+  count(num_facilities) %>%
+  ggplot(aes(
+    x = factor(num_facilities),
+    y = n,
+    fill = n
+  )) +
+  geom_col(
+    width = 0.7,
+    color = "white"
+  ) +
+  geom_text(
+    aes(label = paste0("n = ", n)),
+    vjust = -0.5,
+    size = 2.5
+  ) +
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+  labs(
+    title = "Distribution of Number of Facilities",
+    x = "Number of Servicing Facilities",
+    y = "Number of Surgeons"
+  ) +
+  scale_y_continuous(
+    breaks = scales::breaks_width(5),
+    expand = expansion(mult = c(0, 0.1))
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "grey85",
+      linewidth = 0.4
+    )
+  )
+
+num_facility
+```
+
+### Table
+
+```{r echo=F}
+# Recode number of facilities
+df_facilities <- df %>%
+  mutate(
+    num_facilities = if_else(
+      multiple_facilities == "no",
+      1,
+      num_facilities
+    )
+  )
+
+# Create table using your existing function
+gt_num_facilities <- make_profile_table_gt(
+  df_facilities,
+  sections = c(
+    num_facilities = "Number of Servicing Facilities"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Distribution of Number of Facilities",
+  overall_n_right = TRUE
+)
+
+gt_num_facilities
+```
+
+# WORKFORCE PROFILE
+
+## 
