@@ -50,10 +50,20 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_rds(here("data/clean_data_20261104.rds"))
+df <- read_rds(here("data/clean_data_20261105.rds"))
 
 merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
 ```
+
+
+# Response rate and data completeness
+
+Potential participants were identified through multiple sources, including the College of Surgeons of East, Central and Southern Africa (COSECSA), the 2nd Chance professional network, and publicly available online resources. The COSECSA membership lists identified 1,689 surgeons. The 2nd Chance network, developed through professional contacts and conference attendance, contributed an additional 64 surgeons not included in the COSECSA lists. Online searches of LinkedIn, search engines, and published literature identified another 32 surgeons not previously identified through either source. Together, these sources yielded 1,785 unique potential participants.
+
+A total of 51 individuals accessed the survey. Of these, one declined informed consent, and eight were excluded because they were not currently practicing in Sub-Saharan Africa. Consequently, 42 participants met the eligibility criteria and were eligible for inclusion in the analysis.
+
+During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, corresponding to 76 years since accreditation. As these values were inconsistent with the respondent's reported age and could not be reliably corrected, both the accreditation year and derived years-in-practice variable were treated as missing for this observation. The respondent was retained in all other analyses for which valid data were available.
+
 
 # Respondent Characteristics
 

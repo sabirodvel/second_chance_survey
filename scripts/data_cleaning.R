@@ -83,6 +83,8 @@ clean_data <- anonymous_data %>%
       
       str_to_lower(str_squish(country_practice)) %in%
         c("côte d’ivoire", "côte d'ivoire") ~ "Côte d'Ivoire",
+
+      country_practice == "Ruanda" ~ "Rwanda",
       
       TRUE ~ str_to_title(str_squish(country_practice))
     )
@@ -396,10 +398,10 @@ merged_data <- clean_cv_data %>%
 # write_csv(clean_disc, "data/clean_data_20261022.csv")
 
 # Save as RDS (preserves factors, levels, and variable types)
-# saveRDS(
-#   clean_cv_data, here("data/clean_data_20261104.rds")
-# )
+saveRDS(
+  clean_cv_data, here("data/clean_data_20261105.rds")
+)
 # 
-# saveRDS(
-#   merged_data, here("data/clean_merged_20261105.rds")
-# )
+saveRDS(
+  merged_data, here("data/clean_merged_20261105.rds")
+)

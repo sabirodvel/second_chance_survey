@@ -41,23 +41,9 @@ pacman::p_load(here,
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_rds(here("data/clean_data_20261104.rds"))
+df <- read_rds(here("data/clean_data_20261105.rds"))
 
 merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
-```
-
-# Response Rate and Data Completeness
-
-```{r response_rate include=F}
-# Number of participants that gave consent
-clean_data_2 %>% 
-  filter(consent == "yes") %>% 
-  nrow()
-
-# Number of participants that do not qualify to study
-clean_data_2 %>% 
-  filter(practicing_ssa == "no") %>% 
-  nrow()
 ```
 
 # RESPONDENT CHARACTERISTICS
