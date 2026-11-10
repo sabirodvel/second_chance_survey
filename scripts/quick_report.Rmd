@@ -20,7 +20,6 @@ editor_options:
     wrap: none
 ---
 
-
 # Report Purpose
 
 This report presents preliminary descriptive findings from the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of plastic and reconstructive surgeons currently practicing in Sub-Saharan Africa (SSA). The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning in the region.
@@ -401,7 +400,6 @@ demographic_pyramid
 ## Country of Practice
 
 The table below summarizes the geographic distribution of reported countries of practice among respondents, including the frequency and percentage of each country. As respondents could practice in multiple countries, percentages are based on the total number of country mentions.
-
 
 ```{r prep_country_practice, include=F}
 # View the countries

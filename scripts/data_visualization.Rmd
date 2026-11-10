@@ -1863,3 +1863,339 @@ facility_staffing %>%
   )
 ```
 
+## PRS Surgeons per Facility by Country
+
+```{r dot-plot echo=F}
+# Calculate number of PRS surgeons per facility
+
+facility_counts <- merged_df %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    n_prs_surgeons = n_distinct(id),
+    .groups = "drop"
+  )
+
+# Create plot
+ggplot(facility_counts,
+       aes(x = facility_country, y = n_prs_surgeons)) +
+
+  geom_jitter(
+    width = 0.15,
+    height = 0,
+    alpha = 0.65,
+    size = 2.5,
+    color = "#377EB8"
+  ) +
+
+  stat_summary(
+  fun = median,
+  geom = "crossbar",
+  width = 0.5,
+  linewidth = 0.3,
+  color = "#D55E00"
+ ) +
+
+  labs(
+    title = "PRS Surgeons per Facility by Country",
+    x = "Country",
+    y = "Number of PRS Surgeons per Facility",
+    caption = "Each dot represents one facility; horizontal lines indicate country medians."
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank()
+  )
+```
+
+```{r echo=F}
+workforce_df <- merged_df %>%
+  group_by(facility_country, facility_name, facility_level) %>%
+  summarise(
+    num_prs_surgeons = median(num_prs_surgeons, na.rm = TRUE),
+    num_prs_trainees = median(num_prs_trainees, na.rm = TRUE),
+    num_ot_nurses = median(num_ot_nurses, na.rm = TRUE),
+    num_physiotherapists = median(num_physiotherapists, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+workforce_long <- workforce_df %>%
+  pivot_longer(
+    cols = c(
+      num_prs_surgeons,
+      num_prs_trainees,
+      num_ot_nurses,
+      num_physiotherapists
+    ),
+    names_to = "workforce_type",
+    values_to = "n"
+  ) %>%
+  mutate(
+    workforce_type = recode(
+      workforce_type,
+      num_prs_surgeons = "PRS Surgeons",
+      num_prs_trainees = "PRS Trainees",
+      num_ot_nurses = "Theatre Nurses",
+      num_physiotherapists = "Physiotherapists"
+    )
+  ) %>%
+  group_by(facility_level, workforce_type) %>%
+  summarise(
+    total = sum(n, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(
+  workforce_long,
+  aes(
+    x = facility_level,
+    y = total,
+    fill = workforce_type
+  )
+) +
+
+  geom_col(
+    width = 0.65,
+    color = "white",
+    linewidth = 0.3
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "PRS Surgeons" = "#276FBF",
+      "PRS Trainees" = "#6CA6CD",
+      "Theatre Nurses" = "#5D9C80",
+      "Physiotherapists" = "#E6A75A"
+    )
+  ) +
+
+  labs(
+    title = "Workforce Composition by Facility Level",
+    x = "Facility Level",
+    y = "Total Number of Workforce Members",
+    fill = "Workforce Category",
+    caption = "Absolute numbers aggregated across unique facilities."
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+```{r}
+facility_workforce <- merged_df %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    num_prs_surgeons = if (all(is.na(num_prs_surgeons))) {
+      NA_real_
+    } else {
+      median(num_prs_surgeons, na.rm = TRUE)
+    },
+    num_prs_trainees = if (all(is.na(num_prs_trainees))) {
+      NA_real_
+    } else {
+      median(num_prs_trainees, na.rm = TRUE)
+    },
+    .groups = "drop"
+  )
+
+country_ratios <- facility_workforce %>%
+  filter(
+    !is.na(facility_country),
+    !is.na(num_prs_surgeons),
+    !is.na(num_prs_trainees)
+  ) %>%
+  group_by(facility_country) %>%
+  summarise(
+    total_surgeons = sum(num_prs_surgeons),
+    total_trainees = sum(num_prs_trainees),
+    n_facilities = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    trainee_surgeon_ratio = if_else(
+      total_surgeons > 0,
+      total_trainees / total_surgeons,
+      NA_real_
+    )
+  )
+
+ggplot(
+  country_ratios,
+  aes(
+    x = reorder(facility_country, trainee_surgeon_ratio),
+    y = trainee_surgeon_ratio
+  )
+) +
+
+  geom_col(
+    fill = "#377EB8",
+    width = 0.65
+  ) +
+
+  geom_hline(
+    yintercept = 1,
+    linetype = "dashed",
+    color = "#D55E00",
+    linewidth = 0.5
+  ) +
+
+  geom_text(
+    aes(label = sprintf("%.2f", trainee_surgeon_ratio)),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.12))
+  ) +
+
+  labs(
+    title = "Trainee-to-Surgeon Ratio by Country",
+    x = "Country",
+    y = "Trainees per PRS Surgeon",
+    caption = "Dashed line indicates a 1:1 trainee-to-surgeon ratio."
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major.x = element_blank()
+  )
+```
+
+```{r}
+facility_emergency <- merged_df %>%
+  mutate(
+    emergency_24hr = na_if(str_trim(as.character(emergency_24hr)), "")
+  ) %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    facility_level = first(na.omit(facility_level),
+                           default = NA_character_),
+
+    facility_location_type = first(
+      na.omit(facility_location_type),
+      default = NA_character_
+    ),
+
+    emergency_coverage = case_when(
+      all(is.na(emergency_24hr)) ~ NA_character_,
+      n_distinct(emergency_24hr, na.rm = TRUE) > 1 ~ "Conflicting",
+      TRUE ~ first(na.omit(emergency_24hr))
+    ),
+
+    .groups = "drop"
+  )
+
+# Keep facilities with valid Yes/No responses
+emergency_df <- facility_emergency %>%
+  filter(emergency_coverage %in% c("Yes", "No"))
+
+# Function to calculate N (%)
+summarize_coverage <- function(data, group_var, group_label) {
+
+  data %>%
+    filter(!is.na(.data[[group_var]])) %>%
+    group_by(
+      group = .data[[group_var]],
+      emergency_coverage
+    ) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    complete(
+      group,
+      emergency_coverage = c("Yes", "No"),
+      fill = list(n = 0)
+    ) %>%
+    group_by(group) %>%
+    mutate(
+      pct = 100 * n / sum(n),
+      value = sprintf("%d (%.1f%%)", n, pct),
+      column = paste(group_label, group)
+    ) %>%
+    ungroup() %>%
+    select(emergency_coverage, column, value)
+}
+
+overall <- emergency_df %>%
+  count(emergency_coverage, name = "n") %>%
+  complete(
+    emergency_coverage = c("Yes", "No"),
+    fill = list(n = 0)
+  ) %>%
+  mutate(
+    pct = 100 * n / sum(n),
+    value = sprintf("%d (%.1f%%)", n, pct),
+    column = "Overall"
+  ) %>%
+  select(emergency_coverage, column, value)
+
+by_level <- summarize_coverage(
+  emergency_df,
+  "facility_level",
+  "Level:"
+)
+
+by_location <- summarize_coverage(
+  emergency_df,
+  "facility_location_type",
+  "Location:"
+)
+
+table_5_2 <- bind_rows(
+  overall,
+  by_level,
+  by_location
+) %>%
+  pivot_wider(
+    names_from = column,
+    values_from = value
+  ) %>%
+  mutate(
+    emergency_coverage = factor(
+      emergency_coverage,
+      levels = c("Yes", "No")
+    )
+  ) %>%
+  arrange(emergency_coverage) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Table 5.2. Emergency PRS Coverage**"),
+    subtitle = "Overall and by facility characteristics"
+  ) %>%
+  cols_label(
+    emergency_coverage = "Emergency PRS Coverage"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = -emergency_coverage
+  ) %>%
+  tab_source_note(
+    md(
+      "*Values are n (%). Percentages are calculated within each group. Facilities with unresolved or missing Q28 responses are excluded.*"
+    )
+  ) %>%
+  opt_row_striping()
+
+table_5_2
+
+```
+
+# SERVICE DELIVERY
+
+## Scope of Procedure Performed
+
+```{r}
+
+```
+
