@@ -35,15 +35,17 @@ pacman::p_load(here,
                rnaturalearthdata,
                patchwork,
                purrr,
-               scales
+               scales,
+               forcats,
+               RColorBrewer
                )
 ```
 
 ```{r dataset_load, include = F}
 # Load data (consent and ssa)
-df <- read_rds(here("data/clean_data_20261105.rds"))
+df <- read_rds(here("data/clean_data_20261112.rds"))
 
-merged_df <- read_rds(here("data/clean_merged_20261105.rds"))
+merged_df <- read_rds(here("data/clean_merged_20261112.rds"))
 ```
 
 # RESPONDENT CHARACTERISTICS
@@ -2195,7 +2197,388 @@ table_5_2
 
 ## Scope of Procedure Performed
 
-```{r}
+### Heatmap
+
+```{r heatmap include=F}
+# Create list of variables
+procedure_vars <- names(df)[84:101]
+
+response_levels <- c(
+  "routinely",
+  "occasionally",
+  "rarely",
+  "not_performed"
+)
+
+# Custom procedure labels
+procedure_labels <- c(
+  "wound_debridement"     = "Wound Debridement",
+  "skin_lesion_excision"  = "Skin Lesion Excision",
+  "burn_excision"         = "Burn Excision",
+  "burn_reconstruction"   = "Burn Reconstruction",
+  "contracture_release"   = "Contracture Release",
+  "skin_substitute_app"   = "Skin Substitute Application",
+  "stsg"                  = "Split-Thickness Skin Graft",
+  "ftsg"                  = "Full-Thickness Skin Graft",
+  "local_pedicled_flaps"  = "Local/Pedicled Flaps",
+  "microvascular_surgery" = "Microvascular Surgery",
+  "hand_surgery_proc"     = "Hand Surgery Procedures",
+  "tendon_repair"         = "Tendon Repair",
+  "amputation"            = "Amputation",
+  "cleft_lip_repair"      = "Cleft Lip Repair",
+  "cleft_palate_repair"   = "Cleft Palate Repair",
+  "craniofacial_recon"    = "Craniofacial Reconstruction",
+  "breast_reconstruction" = "Breast Reconstruction",
+  "cosmetic_surgery"      = "Cosmetic Surgery"
+)
+
+service_long <- df %>%
+  select(all_of(procedure_vars)) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "procedure",
+    values_to = "frequency"
+  ) %>%
+  mutate(
+    frequency = str_squish(as.character(frequency)),
+    frequency = case_when(
+      str_to_lower(frequency) == "performed occasionally" ~
+        "Occasionally performed",
+      TRUE ~ frequency
+    ),
+    frequency = factor(
+      frequency,
+      levels = response_levels
+    )
+  )
 
 ```
+
+```{r calculate_heatmap include=F}
+# Calculate the heatmap percentages
+heatmap_data <- service_long %>%
+  filter(!is.na(frequency)) %>%
+  count(procedure, frequency, name = "n") %>%
+  complete(
+    procedure,
+    frequency = factor(
+      response_levels,
+      levels = response_levels
+    ),
+    fill = list(n = 0)
+  ) %>%
+  group_by(procedure) %>%
+  mutate(
+    total = sum(n),
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+# Order procedures by % routinely performed
+procedure_order <- heatmap_data %>%
+  filter(frequency == "routinely") %>%
+  arrange(desc(percent)) %>%
+  pull(procedure)
+
+heatmap_data <- heatmap_data %>%
+  mutate(
+    procedure = factor(
+      procedure,
+      levels = rev(procedure_order)
+    )
+  )
+
+
+```
+
+```{r create_heatmap echo=F}
+# Creat heatmap
+ggplot(heatmap_data, aes(x = frequency, y = procedure, fill = percent)) +
+  geom_tile(color = "white", linewidth = 0.7) +
+  geom_text(aes(
+    label = sprintf("%.1f%%", percent),
+    color = case_when(percent == 0 ~ "grey50", 
+                      percent >= 50 ~ "white", 
+                      TRUE ~ "black")
+  ),
+  size = 3.5,
+  show.legend = FALSE) +
+  scale_color_identity() +
+  scale_fill_gradientn(
+    colours = c("white", RColorBrewer::brewer.pal(9, "YlOrRd")),
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x)
+      paste0(x, "%"),
+    name = "Respondents (%)"
+  ) +
+  scale_x_discrete(labels = c("Routinely", "Occasionally", "Rarely", "Not performed")) +
+  labs(
+    title = "Scope of Procedures Performed",
+    subtitle = "Distribution of surgeon-reported procedural frequency",
+    x = NULL,
+    y = NULL,
+    caption = paste(
+      "Percentages calculated from valid responses",
+      "for each procedure."
+    )
+  ) +
+  
+  scale_y_discrete(
+    labels = function(x) {
+      dplyr::coalesce(unname(procedure_labels[x]), x)
+    }
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+```
+
+### Heatmap by country
+
+```{r facility_lookup include=F}
+# Extract unique facility-country combinations
+facility_country_lookup <- merged_df %>%
+  select(
+    facility_name,
+    facility_country
+  ) %>%
+  filter(
+    !is.na(facility_name),
+    !is.na(facility_country)
+  ) %>%
+  distinct()
+
+# Extract each surgeon's responses once
+surgeon_service <- merged_df %>%
+  select(
+    id,
+    main_facility_name,
+    all_of(procedure_vars)
+  ) %>%
+  distinct()
+
+```
+
+```{r join_lists include=F}
+# Join the two lists
+surgeon_service_country <- surgeon_service %>%
+  left_join(
+    facility_country_lookup,
+    by = c(
+      "main_facility_name" = "facility_name"
+    ),
+    relationship = "many-to-one"
+  )
+
+```
+
+```{r pivot include=F}
+# Pivot long
+service_long_country <- surgeon_service_country %>%
+  pivot_longer(
+    cols = all_of(procedure_vars),
+    names_to = "procedure",
+    values_to = "frequency"
+  ) %>%
+  mutate(
+    frequency = factor(
+      frequency,
+      levels = response_levels,
+      ordered = TRUE
+    )
+  )
+
+```
+
+```{r calculate_percentage include=F}
+# Calculate heatmap percentages by country
+heatmap_country <- service_long_country %>%
+  filter(
+    !is.na(facility_country),
+    !is.na(procedure),
+    !is.na(frequency)
+  ) %>%
+  count(
+    facility_country,
+    procedure,
+    frequency,
+    name = "n",
+    .drop = FALSE
+  ) %>%
+  group_by(facility_country, procedure) %>%
+  complete(
+    frequency = factor(
+      response_levels,
+      levels = response_levels,
+      ordered = TRUE
+    ),
+    fill = list(n = 0)
+  ) %>%
+  mutate(
+    total = sum(n),
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup() %>%
+  filter(total > 0)
+
+# Sort procedures by overall % routinely performed
+# Only include respondents with a matched country
+procedure_order <- service_long_country %>%
+  filter(
+    !is.na(facility_country),
+    !is.na(procedure),
+    !is.na(frequency)
+  ) %>%
+  group_by(procedure) %>%
+  summarise(
+    pct_routine = 100 * mean(
+      frequency == "Routinely performed"
+    ),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(pct_routine)) %>%
+  pull(procedure)
+
+# Apply the same ordering to every country
+heatmap_country <- heatmap_country %>%
+  mutate(
+    procedure = factor(
+      as.character(procedure),
+      levels = rev(procedure_order)
+    ),
+    frequency = factor(
+      as.character(frequency),
+      levels = response_levels,
+      ordered = TRUE
+    )
+  )
+
+```
+
+
+```{r create_heatmap echo=F}
+# Function to create country-specific heatmaps
+plot_country_heatmap <- function(country_name) {
+  country_data <- heatmap_country %>%
+    filter(facility_country == country_name)
+  
+  if (nrow(country_data) == 0) {
+    stop(paste("No data found for", country_name))
+  }
+  
+  # Count unique surgeons with at least one valid response
+  n_surgeons <- service_long_country %>%
+    filter(facility_country == country_name, !is.na(frequency)) %>%
+    summarise(n = n_distinct(id)) %>%
+    pull(n)
+  
+  ggplot(country_data, aes(x = frequency, y = procedure, fill = percent)) +
+    geom_tile(color = "white", linewidth = 0.7) +
+    geom_text(aes(
+      label = sprintf("%.1f%%", percent),
+      color = case_when(percent == 0 ~ "grey50", 
+                        percent >= 50 ~ "white", 
+                        TRUE ~ "black")
+    ),
+    size = 3.5,
+    show.legend = FALSE) +
+    scale_color_identity() +
+    scale_fill_gradientn(
+    colours = c("white", RColorBrewer::brewer.pal(9, "YlOrRd")),
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x)
+      paste0(x, "%"),
+    name = "Respondents (%)"
+  ) +
+    scale_x_discrete(
+      labels = c("Routinely", "Occasionally", "Rarely", "Not performed"),
+      drop = FALSE
+    ) +
+    scale_y_discrete(
+      labels = function(x) {
+        dplyr::coalesce(unname(procedure_labels[x]), x)
+      }
+    ) +
+    labs(
+      title = paste("Scope of Procedures Performed —", country_name),
+      subtitle = "Surgeon-reported procedural frequency",
+      x = NULL,
+      y = NULL,
+      caption = paste0("N = ", n_surgeons, " surgeons. ")
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(face = "bold"),
+      plot.title = element_text(face = "bold"),
+      plot.caption = element_text(
+        hjust = 0,
+        size = 9,
+        color = "gray40"
+      ),
+      legend.position = "none"
+    )
+}
+
+# Get all countries
+countries <- heatmap_country %>%
+  distinct(facility_country) %>%
+  pull(facility_country)
+
+# Create an individual plot for every country
+country_plots <- setNames(lapply(countries, plot_country_heatmap), countries)
+
+# Display one country
+print(country_plots[["Kenya"]])
+
+# Define output directory
+output_dir <- here("images", "country_heatmaps")
+
+# Create folder if it doesn't exist
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+# Save all country heatmaps
+for (country in countries) {
+
+  filename <- file.path(
+    output_dir,
+    paste0(
+      gsub("[^A-Za-z0-9]+", "_", country),
+      "_heatmap.png"
+    )
+  )
+
+  ggsave(
+    filename = filename,
+    plot = country_plots[[country]],
+    width = 10,
+    height = 8,
+    dpi = 300,
+    bg = "white"
+  )
+}
+
+```
+
+## Surgical Volume
 

@@ -5,7 +5,7 @@
 ## Author: Sabina Rodriguez
 ##
 ## Created: 08/31/2026
-## Updated: 11/05/2026
+## Updated: 11/12/2026
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load packages ----
@@ -185,6 +185,8 @@ facility_map <- c(
     "ALERT Comprehensive Specialized Hospital",
   "alert" =
     "ALERT Comprehensive Specialized Hospital",
+  "Alert" =
+    "ALERT Comprehensive Specialized Hospital",
   
   # Kijabe
   "aic kijabe hospital" = "AIC Kijabe Hospital",
@@ -222,8 +224,15 @@ facility_map <- c(
   
   # CHUK
   "chuk" = "University Teaching Hospital of Kigali (CHUK)",
+  "Chuk" = "University Teaching Hospital of Kigali (CHUK)",
   "university teaching hospital of kigali" =
     "University Teaching Hospital of Kigali (CHUK)",
+  
+  # CHUSO
+  "chuso" = "Centre Hospitalier Universitaire Sylvanus Olympio (CHUSO)",
+  
+  # CORSU
+  "corsu" = "Comprehensive Rehabilitation Services in Uganda (CORSU)",
   
   # Kayunga
   "kayunaga regional referral hospital" =
@@ -251,7 +260,7 @@ name_fixes <- c(
   = "Ethio Tebib Hospital",
   "Heal venture"
   = "Heal Venture",
-  "Institut Raoul Follereau de Cote D'ivoire"
+  "Institut Raoul Follereau de Cote D’ivoire"
   = "Institut Raoul Follereau de Côte d'Ivoire",
   "Children's Surgical hospital"
   = "Children's Surgical Hospital",
@@ -379,6 +388,31 @@ clean_facilities <- raw_data_facilities %>%
 #   filter(n_location_types > 1 | n_levels > 1 | n_ownerships > 1)
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Clean main facilities in df ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Clean df facilities
+clean_cv_data <- clean_cv_data %>%
+  # Map the facilities
+  mutate(
+    main_facility_name_original = main_facility_name,
+    main_facility_name = str_squish(main_facility_name),
+    # Standarize duplicate facility names
+    main_facility_name = coalesce(
+      unname(facility_map[str_to_lower(main_facility_name)]), main_facility_name
+    ),
+    # Apply manual spelling, casing, and punctuation fixes
+    main_facility_name = coalesce(
+      unname(name_fixes[
+        match(
+          str_to_lower(main_facility_name),
+          str_to_lower(names(name_fixes))
+        )
+      ]),
+      main_facility_name
+    )
+  )
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Join two datasets ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # View unique ID 
@@ -402,9 +436,9 @@ merged_data <- clean_cv_data %>%
 
 # Save as RDS (preserves factors, levels, and variable types)
 saveRDS(
-  clean_cv_data, here("data/clean_data_20261105.rds")
+  clean_cv_data, here("data/clean_data_20261112.rds")
 )
 # Save RDS
 saveRDS(
-  merged_data, here("data/clean_merged_20261105.rds")
+  merged_data, here("data/clean_merged_20261112.rds")
 )
