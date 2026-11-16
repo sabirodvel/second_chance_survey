@@ -33,15 +33,6 @@ raw_data_facilities <- read_excel(here("data/raw/prs_survey_facilities_data.xlsx
   clean_names() %>% 
   mutate(submission_id = as.character(submission_id))
 
-# Validate respondent IDs 
-# stopifnot("id" %in% names(raw_data))
-# stopifnot("submission_id" %in% names(raw_data_facilities))
-
-# Check that it is correct
-# if (anyNA(raw_data$id) || anyDuplicated(raw_data$id)) {
-#   stop("Participant IDs must be nonmissing and unique. Inspect raw_data$id.")
-# }
-
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ID & Deidentify emails ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,10 +43,10 @@ anonymous_data <- raw_data %>%
   # Drop test entry while keeping NAs
   filter(is.na(country_practice) | country_practice != "Switzerland")
 
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Clean main dataframe ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## Clean main dataframe ----
-##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### Cleaning columns ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,7 +159,13 @@ clean_cv_data <- consent_ssa %>%
     position = factor(position,
       levels = c("academic_faculty", "dept_head", "consultant", "resident", "fellow"),
       labels = c("Academic faculty", "Department head/chair", "Consultant/Attending surgeon",
-                 "Resident/Trainee", "Fellow"))
+                 "Resident/Trainee", "Fellow")),
+    
+    # Factorize surgical volume
+    annual_recon_volume = factor(annual_recon_volume,
+      levels = c("lt50", "50_100", "101_250", "251_500", "501_1000", "gt1000"),
+      labels = c("<50", "50-100", "101-250", "251-500", "501-1000", ">1000")
+    )
 )
 
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -45,7 +45,7 @@ pacman::p_load(here,
 # Load data (consent and ssa)
 df <- read_rds(here("data/clean_data_20261112.rds"))
 
-merged_df <- read_rds(here("data/clean_merged_20261112.rds"))
+facility_df <- read_rds(here("data/clean_merged_20261112.rds"))
 ```
 
 # RESPONDENT CHARACTERISTICS
@@ -1321,7 +1321,7 @@ country_plots[[country]]$position
 
 ```{r}
 # Create one record per unique facility
-facility_level_df <- merged_df %>%
+facility_level_df <- facility_df %>%
   distinct(
     facility_name,
     .keep_all = TRUE
@@ -1473,7 +1473,7 @@ gt_table
 
 ```{r facility_barplot include=F}
 # COunt unique facilities by level and ownership
-facility_count <- merged_df %>% 
+facility_count <- facility_df %>% 
   distinct(
     facility_name,
     facility_level,
@@ -1492,7 +1492,7 @@ facility_count <- merged_df %>%
   ungroup()
 
 # Total unique facilities
-total_facility_n <- merged_df %>%
+total_facility_n <- facility_df %>%
   distinct(facility_name) %>%
   nrow()
 
@@ -1568,7 +1568,7 @@ facility_bar
 
 ```{r urban_rural_barplot include=F}
 # Count facility and percentages
-facility_country_count <- merged_df %>% 
+facility_country_count <- facility_df %>% 
   distinct(
     facility_country,
     facility_name, 
@@ -1588,7 +1588,7 @@ facility_country_count <- merged_df %>%
   ungroup()
 
 # Total number of unique facilities
-total_facility_n <- merged_df %>%
+total_facility_n <- facility_df %>%
   distinct(facility_country, facility_name) %>%
   nrow()
 
@@ -1811,7 +1811,7 @@ format_staffing <- function(x) {
 }
 
 # Facility-level staffing summary
-facility_staffing <- merged_df %>%
+facility_staffing <- facility_df %>%
   group_by(facility_country, facility_name) %>%
   summarise(
     n_respondents = n(),
@@ -1870,7 +1870,7 @@ facility_staffing %>%
 ```{r dot-plot echo=F}
 # Calculate number of PRS surgeons per facility
 
-facility_counts <- merged_df %>%
+facility_counts <- facility_df %>%
   group_by(facility_country, facility_name) %>%
   summarise(
     n_prs_surgeons = n_distinct(id),
@@ -1914,7 +1914,7 @@ ggplot(facility_counts,
 ```
 
 ```{r echo=F}
-workforce_df <- merged_df %>%
+workforce_df <- facility_df %>%
   group_by(facility_country, facility_name, facility_level) %>%
   summarise(
     num_prs_surgeons = median(num_prs_surgeons, na.rm = TRUE),
@@ -1993,7 +1993,7 @@ ggplot(
 ```
 
 ```{r}
-facility_workforce <- merged_df %>%
+facility_workforce <- facility_df %>%
   group_by(facility_country, facility_name) %>%
   summarise(
     num_prs_surgeons = if (all(is.na(num_prs_surgeons))) {
@@ -2077,7 +2077,7 @@ ggplot(
 ```
 
 ```{r}
-facility_emergency <- merged_df %>%
+facility_emergency <- facility_df %>%
   mutate(
     emergency_24hr = na_if(str_trim(as.character(emergency_24hr)), "")
   ) %>%
@@ -2348,7 +2348,7 @@ ggplot(heatmap_data, aes(x = frequency, y = procedure, fill = percent)) +
 
 ```{r facility_lookup include=F}
 # Extract unique facility-country combinations
-facility_country_lookup <- merged_df %>%
+facility_country_lookup <- facility_df %>%
   select(
     facility_name,
     facility_country
@@ -2360,7 +2360,7 @@ facility_country_lookup <- merged_df %>%
   distinct()
 
 # Extract each surgeon's responses once
-surgeon_service <- merged_df %>%
+surgeon_service <- facility_df %>%
   select(
     id,
     main_facility_name,
@@ -2581,4 +2581,366 @@ for (country in countries) {
 ```
 
 ## Surgical Volume
+
+```{r}
+# Match the facility name to extract country
+surgical_volume_data <- df %>%
+  mutate(
+    facility_country = facility_df$facility_country[
+      match(main_facility_name, facility_df$facility_name)
+    ]
+  )
+
+```
+
+```{r surgical_volume_table include=F}
+.build_volume_section <- function(
+    df,
+    var,
+    section_label,
+    digits = 1
+) {
+
+  v <- df[[var]]
+  volume_levels <- levels(v)
+  denom <- nrow(df)
+
+  items <- tibble(value = v) %>%
+    count(value, name = "n", .drop = FALSE) %>%
+    filter(!is.na(value)) %>%
+    mutate(
+      pct = if (denom > 0) n / denom else NA_real_,
+      row_type = "item",
+      label = as.character(value),
+      display_n = scales::comma(n),
+      display_pct = ifelse(
+        is.na(pct),
+        "—",
+        scales::percent(pct, accuracy = 10^-digits)
+      )
+    ) %>%
+    select(row_type, label, display_n, display_pct)
+
+  header <- tibble(
+    row_type = "section",
+    label = sprintf(
+      "%s (N = %s)",
+      section_label,
+      scales::comma(denom)
+    ),
+    display_n = "",
+    display_pct = ""
+  )
+
+  bind_rows(header, items)
+}
+
+make_surgical_volume_table_gt <- function(
+    df,
+    volume_var = "annual_recon_volume",
+    country_var = "surgeon_country",        # <-- updated default
+    digits = 1,
+    title = "Annual Reconstructive Procedure Volume"
+) {
+
+  required_vars <- c(volume_var, country_var)
+
+  if (!all(required_vars %in% names(df))) {
+    stop("Check volume_var and country_var column names.")
+  }
+
+  overall_section <- .build_volume_section(
+    df = df,
+    var = volume_var,
+    section_label = "Overall",
+    digits = digits
+  )
+
+  country_sections <- df %>%
+    mutate(
+      .country = str_trim(
+        as.character(.data[[country_var]])
+      )
+    ) %>%
+    filter(!is.na(.country), .country != "") %>%
+    group_split(.country) %>%
+    map_dfr(function(country_df) {
+      country_name <- country_df$.country[1]
+      .build_volume_section(
+        df = country_df,
+        var = volume_var,
+        section_label = country_name,
+        digits = digits
+      )
+    })
+
+  body <- bind_rows(
+    overall_section,
+    country_sections
+  ) %>%
+    mutate(
+      Label = label,
+      `N surgeons` = display_n,
+      `%` = display_pct
+    ) %>%
+    select(Label, `N surgeons`, `%`, row_type)
+
+  gt_tbl <- body %>%
+    gt() %>%
+
+    cols_hide(columns = row_type) %>%
+
+    tab_header(
+      title = md(paste0("**", title, "**")),
+      subtitle = paste0(
+        "Total surgeons surveyed: N = ",
+        comma(nrow(df))
+      )
+    ) %>%
+
+    cols_label(
+      Label = "Annual procedure volume",
+      `N surgeons` = "N surgeons",
+      `%` = "%"
+    ) %>%
+
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(
+        rows = row_type == "item",
+        columns = Label
+      )
+    ) %>%
+
+    tab_style(
+      style = cell_fill(color = "#F2F4F6"),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+
+    tab_style(
+      style = cell_borders(
+        sides = "top",
+        color = "grey80",
+        weight = px(1)
+      ),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+
+    cols_align(
+      align = "right",
+      columns = c(`N surgeons`, `%`)    # <-- fixed from `N facilities`
+    ) %>%
+
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      heading.align = "left",
+      column_labels.font.weight = "bold",
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+
+    tab_source_note(
+      source_note = md(
+        "*Percentages are based on surgeons with valid responses within each country."  # <-- fixed
+      )
+    )
+
+  return(gt_tbl)
+}
+
+```
+
+```{r create_surgical_table echo=F}
+# Generate Table
+gt_table_surgical_vol <- make_surgical_volume_table_gt(
+  df = surgical_volume_data,
+  volume_var = "annual_recon_volume",
+  country_var = "surgeon_country",      # <-- updated to match renamed column
+  digits = 1,
+  title = "Annual Reconstructive Procedure Volume by Surgeon"
+)
+
+gt_table_surgical_vol
+```
+
+## Workload 
+
+```{r prepare_workload include=F}
+# Prepare workload categories
+
+# Total surgeons with valid workload responses
+total_respondents <- df %>%
+  filter(
+    !is.na(workload_categories),
+    str_trim(as.character(workload_categories)) != ""
+  ) %>%
+  nrow()
+
+# Separate multiple selections into individual rows
+workload_df <- df %>%
+  mutate(
+    respondent_id = row_number(),
+    workload_categories = as.character(workload_categories)
+  ) %>%
+  filter(
+    !is.na(workload_categories),
+    str_trim(workload_categories) != ""
+  ) %>%
+  separate_rows(
+    workload_categories,
+    sep = ";"
+  ) %>%
+  mutate(
+    workload_categories = str_trim(workload_categories)
+  ) %>%
+  filter(
+    workload_categories != "",
+    !is.na(workload_categories)
+  ) %>%
+  # Count each category once per surgeon
+  distinct(respondent_id, workload_categories)
+
+# Calculate frequencies and percentages
+workload_count <- workload_df %>%
+  count(
+    workload_categories,
+    name = "n"
+  ) %>%
+  arrange(desc(n), workload_categories) %>%
+  mutate(
+    percentage = 100 * n / total_respondents,
+
+    # Highlight the 3 most frequently selected categories
+    rank = row_number(),
+
+    highlight = if_else(
+      rank <= 3,
+      "Top 3 Categories",
+      "Other Categories"
+    ),
+
+    # Label with frequency and percentage
+    pct_label = sprintf(
+      "%.1f%% (n = %s)",
+      percentage,
+      n
+    )
+  )
+
+# View the summary
+workload_count
+
+```
+
+```{r histogram_workload echo=F}
+# Most Common Reconstructive Workload
+
+workload_bar <- workload_count %>%
+  ggplot(
+    aes(
+      x = reorder(workload_categories, percentage),
+      y = percentage,
+      fill = percentage
+    )
+  ) +
+
+  # Horizontal bars
+  geom_col(
+    width = 0.75
+  ) +
+
+  # Percentage and frequency labels
+  geom_text(
+    aes(label = pct_label),
+    hjust = -0.1,
+    size = 3.5,
+    color = "black"
+  ) +
+
+  # Continuous color gradient based on percentage
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+
+  # Format category names
+  scale_x_discrete(
+    labels = function(x) {
+      stringr::str_wrap(
+        stringr::str_to_sentence(
+          stringr::str_replace_all(x, "_", " ")
+        ),
+        width = 30
+      )
+    }
+  ) +
+
+  # Percentage axis
+  scale_y_continuous(
+    limits = c(
+      0,
+      max(workload_count$percentage) * 1.25
+    ),
+    breaks = scales::breaks_width(10),
+    labels = scales::label_number(suffix = "%")
+  ) +
+
+  # Horizontal orientation
+  coord_flip(clip = "off") +
+
+  labs(
+    title = "Most Common Reconstructive Workload Categories",
+    subtitle = paste0(
+      "Top 3 workload categories reported by surgeons (N = ",
+      total_respondents,
+      ")"
+    ),
+    x = NULL,
+    y = "% of respondents selecting as top 3",
+    caption = paste(
+      "Respondents could select up to three categories.",
+      "Percentages may exceed 100% when summed."
+    )
+  ) +
+
+  theme_minimal() +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    ),
+    plot.margin = margin(10, 45, 10, 10)
+  )
+
+# Display figure
+workload_bar
+
+```
+
+# INFRASTRUCTURE
+
+## Availability
+
+```{r}
+
+```
 
