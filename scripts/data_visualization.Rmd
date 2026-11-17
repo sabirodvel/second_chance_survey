@@ -37,7 +37,8 @@ pacman::p_load(here,
                purrr,
                scales,
                forcats,
-               RColorBrewer
+               RColorBrewer,
+               tidytext
                )
 ```
 
@@ -2544,39 +2545,39 @@ countries <- heatmap_country %>%
 # Create an individual plot for every country
 country_plots <- setNames(lapply(countries, plot_country_heatmap), countries)
 
-# Display one country
-print(country_plots[["Kenya"]])
-
-# Define output directory
-output_dir <- here("images", "country_heatmaps")
-
-# Create folder if it doesn't exist
-dir.create(
-  output_dir,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
+# # Display one country
+# print(country_plots[["Kenya"]])
+# 
+# # Define output directory
+# output_dir <- here("images", "country_heatmaps")
+# 
+# # Create folder if it doesn't exist
+# dir.create(
+#   output_dir,
+#   recursive = TRUE,
+#   showWarnings = FALSE
+# )
 
 # Save all country heatmaps
-for (country in countries) {
-
-  filename <- file.path(
-    output_dir,
-    paste0(
-      gsub("[^A-Za-z0-9]+", "_", country),
-      "_heatmap.png"
-    )
-  )
-
-  ggsave(
-    filename = filename,
-    plot = country_plots[[country]],
-    width = 10,
-    height = 8,
-    dpi = 300,
-    bg = "white"
-  )
-}
+# for (country in countries) {
+# 
+#   filename <- file.path(
+#     output_dir,
+#     paste0(
+#       gsub("[^A-Za-z0-9]+", "_", country),
+#       "_heatmap.png"
+#     )
+#   )
+# 
+#   ggsave(
+#     filename = filename,
+#     plot = country_plots[[country]],
+#     width = 10,
+#     height = 8,
+#     dpi = 300,
+#     bg = "white"
+#   )
+# }
 
 ```
 
@@ -2936,11 +2937,3839 @@ workload_bar
 
 ```
 
+## Workload by Country
+
+```{r workload by country}
+# -------------------------------------------------------
+# 1. Prepare workload data by country
+# -------------------------------------------------------
+
+# Total respondents answering per country
+country_respondents <- surgical_volume_data %>%
+  mutate(
+    workload_categories = as.character(workload_categories),
+    facility_country = as.character(facility_country)
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    str_trim(facility_country) != "",
+    !is.na(workload_categories),
+    str_trim(workload_categories) != ""
+  ) %>%
+  count(facility_country, name = "total_respondents")
+
+# Separate multiple responses
+workload_country_df <- surgical_volume_data %>%
+  mutate(
+    respondent_id = row_number(),
+    workload_categories = as.character(workload_categories),
+    facility_country = as.character(facility_country)
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    str_trim(facility_country) != "",
+    !is.na(workload_categories),
+    str_trim(workload_categories) != ""
+  ) %>%
+  separate_rows(
+    workload_categories,
+    sep = ";"
+  ) %>%
+  mutate(
+    workload_categories = str_trim(workload_categories)
+  ) %>%
+  filter(workload_categories != "") %>%
+  distinct(
+    respondent_id,
+    facility_country,
+    workload_categories
+  )
+
+# -------------------------------------------------------
+# 2. Calculate country-specific percentages
+# -------------------------------------------------------
+
+workload_country_count <- workload_country_df %>%
+  count(
+    facility_country,
+    workload_categories,
+    name = "n"
+  ) %>%
+  left_join(
+    country_respondents,
+    by = "facility_country"
+  ) %>%
+  mutate(
+    percentage = 100 * n / total_respondents,
+    pct_label = sprintf("%.1f%% (n = %s)", percentage, n)
+  )
+
+# View summary
+workload_country_count
+
+```
+
+```{r workload_country_bar echo=F}
+# -------------------------------------------------------
+# Function to create country-specific workload bar charts
+# -------------------------------------------------------
+
+plot_country_workload <- function(country_name) {
+
+  # Filter data for selected country
+  country_data <- workload_country_count %>%
+    filter(facility_country == country_name)
+
+  if (nrow(country_data) == 0) {
+    stop(paste("No data found for", country_name))
+  }
+
+  # Number of surgeons who answered Q31 in this country
+  n_surgeons <- country_data %>%
+    summarise(n = first(total_respondents)) %>%
+    pull(n)
+
+  # Prepare workload labels
+  country_data <- country_data %>%
+    mutate(
+      workload_label = str_to_sentence(
+        str_replace_all(workload_categories, "_", " ")
+      ),
+      workload_label = str_wrap(workload_label, width = 30)
+    )
+
+  # Create country-specific horizontal bar chart
+  ggplot(
+    country_data,
+    aes(
+      x = reorder(workload_label, percentage),
+      y = percentage,
+      fill = percentage
+    )
+  ) +
+    geom_col(
+      width = 0.75
+    ) +
+    geom_text(
+      aes(label = pct_label),
+      hjust = -0.1,
+      size = 3.5,
+      color = "black"
+    ) +
+    scale_fill_distiller(
+      palette = "YlOrRd",
+      direction = 1,
+      limits = c(0, 100)
+      ) +
+    scale_y_continuous(
+      limits = c(
+        0,
+        max(country_data$percentage) * 1.25
+      ),
+      breaks = scales::breaks_width(10),
+      labels = scales::label_number(suffix = "%")
+    ) +
+    coord_flip(clip = "off") +
+    labs(
+      title = paste(
+        "Most Common Reconstructive Workload Categories —",
+        str_to_title(
+          str_replace_all(country_name, "_", " ")
+        )
+      ),
+      subtitle = paste0(
+        "Top 3 workload categories reported by surgeons (N = ",
+        n_surgeons,
+        ")"
+      ),
+      x = NULL,
+      y = "% of respondents selecting as top 3",
+      caption = paste(
+        "Respondents could select up to three categories.",
+        "Percentages may exceed 100% when summed."
+      )
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 13
+      ),
+      axis.ticks = element_blank(),
+      axis.title.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "none",
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+      plot.margin = margin(10, 45, 10, 10)
+    )
+}
+
+# -------------------------------------------------------
+# Get all countries
+# -------------------------------------------------------
+
+# Get all countries
+countries <- workload_country_count %>%
+  distinct(facility_country) %>%
+  pull(facility_country)
+
+# Create an individual plot for every country
+country_workload_plots <- setNames(
+  lapply(countries, plot_country_workload),
+  countries
+)
+
+# Display one country
+# print(country_workload_plots[["Kenya"]])
+
+
+# # Define output directory
+# output_dir <- here("images", "country_workload")
+# 
+# # Create folder if it doesn't exist
+# dir.create(
+#   output_dir,
+#   recursive = TRUE,
+#   showWarnings = FALSE
+# )
+
+# Save all country workload bar charts
+for (country in countries) {
+
+  filename <- file.path(
+    output_dir,
+    paste0(
+      gsub("[^A-Za-z0-9]+", "_", country),
+      "_workload.png"
+    )
+  )
+
+  ggsave(
+    filename = filename,
+    plot = country_workload_plots[[country]],
+    width = 12,
+    height = 7,
+    dpi = 300,
+    bg = "white"
+  )
+}
+
+```
+
+
 # INFRASTRUCTURE
+
+## Availability
+
+### Heatmap
+
+```{r heatmap include=F}
+# Create list of variables
+infrastructure_vars <- df %>% 
+  select(starts_with("infra_"))
+
+infra_response_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+# Custom infrastructure labels
+infrastructure_labels <- c(
+  "infra_electricity" = "Electricity",
+  "infra_water" = "Running Water",
+  "infra_oxygen" = "Oxygen Supply",
+  "infra_blood_bank" = "Blood Bank",
+  "infra_icu" = "Intensive Care Unit (ICU)",
+  "infra_physio" = "Physiotherapy Services",
+  "infra_ot_therapy" = "Occupational Therapy Services",
+  "infra_histopath" = "Histopathology Services",
+  "infra_xray" = "X-Ray",
+  "infra_ultrasound" = "Ultrasound",
+  "infra_ct" = "CT Scanner",
+  "infra_dedicated_or" = "Dedicated Operating Room Time for PRS",
+  "infra_temp_or" = "Temperature-Controlled Operating Room",
+  "infra_warming" = "Patient Warming Devices"
+)
+
+infrastructure_long <- infrastructure_vars %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "infrastructure",
+    values_to = "frequency"
+  ) %>%
+  mutate(
+    frequency = str_squish(as.character(frequency)),
+    frequency = factor(
+      frequency,
+      levels = infra_response_levels
+    )
+  )
+
+```
+
+```{r calculate_heatmap include=F}
+# Calculate the heatmap percentages
+infra_heatmap_data <- infrastructure_long %>%
+  filter(!is.na(frequency)) %>%
+  count(infrastructure, frequency, name = "n") %>%
+  complete(
+    infrastructure,
+    frequency = factor(
+      infra_response_levels,
+      levels = infra_response_levels
+    ),
+    fill = list(n = 0)
+  ) %>%
+  group_by(infrastructure) %>%
+  mutate(
+    total = sum(n),
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+# Order infrastructure by % consistently performed
+infrastructure_order <- infra_heatmap_data %>%
+  filter(frequency == "consistently") %>%
+  arrange(desc(percent)) %>%
+  pull(infrastructure)
+
+infra_heatmap_data <- infra_heatmap_data %>%
+  mutate(
+    infrastructure = factor(
+      infrastructure,
+      levels = rev(infrastructure_order)
+    )
+  )
+
+```
+
+```{r create_heatmap echo=F}
+# Create heatmap
+ggplot(infra_heatmap_data, aes(x = frequency, y = infrastructure, fill = percent)) +
+  geom_tile(color = "white", linewidth = 0.7) +
+  geom_text(aes(
+    label = sprintf("%.1f%%", percent),
+    color = case_when(percent == 0 ~ "grey50", 
+                      percent >= 50 ~ "white", 
+                      TRUE ~ "black")
+  ),
+  size = 3.5,
+  show.legend = FALSE) +
+  scale_color_identity() +
+  scale_fill_gradientn(
+    colours = c("white", RColorBrewer::brewer.pal(9, "YlOrRd")),
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x)
+      paste0(x, "%"),
+    name = "Respondents (%)"
+  ) +
+  scale_x_discrete(labels = c("Consistently", "Intermittently", "Not Available")) +
+  labs(
+    title = "Infrastructure Available",
+    subtitle = "Distribution of surgeon-reported infrastructure frequency",
+    x = NULL,
+    y = NULL,
+    caption = paste(
+      "Percentages calculated from valid responses",
+      "for each infrastructure."
+    )
+  ) +
+  
+  scale_y_discrete(
+    labels = function(x) {
+      dplyr::coalesce(unname(infrastructure_labels[x]), x)
+    }
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+```
+
+### Readiness Score by Country
+
+#### Option 1: 0,1,2 scores
+
+```{r}
+# -------------------------------------------------------
+# 1. Create unique facility-country lookup
+# -------------------------------------------------------
+
+facility_country_lookup <- facility_df %>%
+  transmute(
+    facility_name = str_squish(as.character(facility_name)),
+    facility_country = na_if(
+      str_squish(as.character(facility_country)),
+      ""
+    )
+  ) %>%
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+  distinct()
+
+# Check for conflicting country assignments
+country_conflicts <- facility_country_lookup %>%
+  group_by(facility_name) %>%
+  summarise(
+    n_countries = n_distinct(
+      facility_country,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  ) %>%
+  filter(n_countries > 1)
+
+if (nrow(country_conflicts) > 0) {
+  stop("Some facility names have conflicting countries.")
+}
+
+# Keep one country per facility, prioritizing non-missing
+facility_country_lookup <- facility_country_lookup %>%
+  arrange(facility_name, is.na(facility_country)) %>%
+  distinct(facility_name, .keep_all = TRUE)
+
+
+# -------------------------------------------------------
+# 2. Add country to aggregated infrastructure data
+# -------------------------------------------------------
+
+infra_facility_country <- infra_facility_summary %>%
+  left_join(
+    facility_country_lookup,
+    by = "facility_name",
+    relationship = "many-to-one"
+  )
+
+# Check unmatched facilities
+infra_facility_country %>%
+  filter(is.na(facility_country)) %>%
+  distinct(facility_name)
+```
+
+```{r}
+
+# -------------------------------------------------------
+# 3. Calculate readiness score for each facility
+# -------------------------------------------------------
+
+# Confirm infrastructure item count
+length(infra_names)
+
+# Prepare facility-item scores
+infra_scores_long <- infra_facility_country %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != ""
+  ) %>%
+  mutate(
+    readiness_point = case_when(
+      availability == "consistently" ~ 2L,
+      availability == "intermittently" ~ 1L,
+      availability == "not_available" ~ 0L,
+      TRUE ~ NA_integer_
+    )
+  ) %>%
+  select(
+    facility_name,
+    facility_country,
+    item,
+    readiness_point
+  ) %>%
+  group_by(facility_name, facility_country) %>%
+  complete(item = infra_names) %>%
+  ungroup()
+
+
+# Calculate total score per facility
+infra_readiness_facility <- infra_scores_long %>%
+  group_by(
+    facility_name,
+    facility_country
+  ) %>%
+  summarise(
+    n_consistently = sum(
+      readiness_point == 1,
+      na.rm = TRUE
+    ),
+
+    n_classified = sum(!is.na(readiness_point)),
+
+    n_missing = n_distinct(item) - n_classified,
+
+    # Full 0-14 score only if all items classified
+    readiness_score = if (
+      n_classified == length(infra_names)
+    ) {
+      as.numeric(n_consistently)
+    } else {
+      NA_real_
+    },
+
+    .groups = "drop"
+  )
+
+# View scores
+infra_readiness_facility
+
+```
+
+
+```{r}
+
+# -------------------------------------------------------
+# 4. Country-level mean and confidence intervals
+# -------------------------------------------------------
+
+infra_readiness_country <- infra_readiness_facility %>%
+  group_by(facility_country) %>%
+  summarise(
+    n_facilities = sum(!is.na(readiness_score)),
+
+    n_incomplete = sum(is.na(readiness_score)),
+
+    mean_score = mean(
+      readiness_score,
+      na.rm = TRUE
+    ),
+
+    sd_score = sd(
+      readiness_score,
+      na.rm = TRUE
+    ),
+
+    .groups = "drop"
+  ) %>%
+  mutate(
+    mean_score = if_else(
+      is.nan(mean_score),
+      NA_real_,
+      mean_score
+    ),
+
+    # Standard error
+    se = sd_score / sqrt(n_facilities),
+
+    # 95% confidence interval
+    t_value = if_else(
+      n_facilities >= 2,
+      qt(0.975, df = pmax(n_facilities - 1, 1)),
+      NA_real_
+    ),
+
+    ci_lower = pmax(
+      0,
+      mean_score - t_value * se
+    ),
+
+    ci_upper = pmin(
+  28,
+  mean_score + t_value * se
+    )
+  ) %>%
+  filter(n_facilities > 0) %>%
+  arrange(desc(mean_score))
+
+# View country summary
+infra_readiness_country
+
+```
+
+```{r}
+# -------------------------------------------------------
+# Figure 7.2 — Infrastructure Readiness Score by Country
+# -------------------------------------------------------
+
+infra_readiness_bar <- infra_readiness_country %>%
+  mutate(
+    country_label = paste0(
+      facility_country,
+      "\n(n = ", n_facilities, ")"
+    ),
+
+    # Sort countries by mean readiness score
+    country_label = factor(
+      country_label,
+      levels = country_label[order(-mean_score)]
+    ),
+
+    # Labels above bars
+    score_label = sprintf("%.1f", mean_score)
+  ) %>%
+  ggplot(
+    aes(
+      x = country_label,
+      y = mean_score,
+      fill = mean_score
+    )
+  ) +
+
+  geom_col(
+    width = 0.7
+  ) +
+
+  # Confidence intervals for countries with n >= 2
+  geom_errorbar(
+    data = function(x) {
+      x %>% filter(n_facilities >= 2)
+    },
+    aes(
+      ymin = ci_lower,
+      ymax = ci_upper
+    ),
+    width = 0.2,
+    linewidth = 0.7,
+    color = "black"
+  ) +
+
+  # Mean score labels
+  geom_text(
+    aes(label = score_label),
+    vjust = -0.7,
+    size = 3.5
+  ) +
+
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1,
+    limits = c(0, 14)
+  ) +
+
+  scale_y_continuous(
+  breaks = seq(0, 28, by = 4),
+  expand = expansion(mult = c(0, 0.05))
+) +
+coord_cartesian(ylim = c(0, 28.5)) +
+
+  labs(
+    title = "Infrastructure Readiness Score by Country",
+    subtitle = "Mean facility readiness score (0–14)",
+    x = NULL,
+    y = "Mean infrastructure readiness score",
+    caption = paste(
+      "Error bars represent 95% confidence intervals",
+      "for countries with at least two complete facilities.",
+      "Facilities with incomplete scores excluded.",
+      "n = number of facilities."
+    )
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 9
+    ),
+    axis.ticks = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+infra_readiness_bar
+
+
+```
+### Infrastructure Readiness Score
+
+A composite infrastructure readiness score was constructed using 14 infrastructure indicators. Each indicator was assigned an ordinal score based on surgeon-reported availability: 2 points for consistently available, 1 point for intermittently available, and 0 points for unavailable. The resulting composite score ranged from 0 to 28, with higher scores indicating greater reported infrastructure availability.
+
+For facilities with multiple surgeon respondents, the modal response was used to determine item-level availability. Facilities with missing or tied modal responses for any infrastructure indicator were excluded from the complete-case readiness analysis. Mean facility-level scores were subsequently calculated by country.
+
+The scoring system was designed as a descriptive, unweighted index of resource availability and was not considered a validated measure of surgical readiness.
+
+### Infrastructure Readiness by Country
+
+Infrastructure readiness varied across the 12 countries surveyed (Figure 7.2). The highest mean readiness score was observed in Rwanda (13.5 out of 14), followed by Kenya and Togo (12.0 each), and Uganda (11.0). Intermediate scores were observed in Nigeria (10.5), Somalia and Tanzania (10.0 each), and Ethiopia (9.0). Lower mean scores were observed in Côte d’Ivoire (8.0), Malawi (7.5), DR Congo (5.0), and Burundi (3.0).
+
+However, the number of facilities contributing to country-level estimates varied considerably, ranging from one to six. Five countries were represented by only one facility, limiting the ability to assess within-country variability. Among countries with multiple facilities, wide 95% confidence intervals were observed in several cases, indicating substantial uncertainty around the estimated mean readiness scores.
+
+Overall, these findings suggest heterogeneity in reported infrastructure availability across surveyed facilities, although the small and unequal country-level sample sizes limit broader comparisons of national infrastructure readiness.
+
+### Histogram
+
+```{r}
+
+# -------------------------------------------------------
+# Percentage of consistently available infrastructure
+# -------------------------------------------------------
+
+# Calculate facility-level infrastructure percentage
+infra_consistency_facility <- infra_facility_country %>%
+  group_by(
+    facility_country,
+    facility_name
+  ) %>%
+  summarise(
+    n_classified = sum(
+      availability %in% availability_levels
+    ),
+
+    n_consistently = sum(
+      availability == "consistently"
+    ),
+
+    .groups = "drop"
+  ) %>%
+  # Keep facilities with all 14 valid classifications
+  filter(
+    n_classified == length(infra_names),
+    !is.na(facility_country),
+    facility_country != ""
+  ) %>%
+  mutate(
+    pct_consistently =
+      100 * n_consistently / length(infra_names)
+  )
+
+
+# Calculate country means
+infra_consistency_country <- infra_consistency_facility %>%
+  group_by(facility_country) %>%
+  summarise(
+    n_facilities = n(),
+
+    mean_pct = mean(pct_consistently),
+
+    .groups = "drop"
+  ) %>%
+  arrange(desc(mean_pct))
+
+infra_consistency_country
+
+```
+
+```{r}
+
+# -------------------------------------------------------
+# Figure 7.2 — Consistently Available Infrastructure
+# -------------------------------------------------------
+
+infra_consistency_bar <- infra_consistency_country %>%
+  mutate(
+    country_label = paste0(
+      facility_country,
+      " (n = ", n_facilities, ")"
+    )
+  ) %>%
+  ggplot(
+    aes(
+      x = reorder(country_label, mean_pct),
+      y = mean_pct,
+      fill = mean_pct
+    )
+  ) +
+
+  geom_col(
+    width = 0.75
+  ) +
+
+  geom_text(
+    aes(
+      label = sprintf("%.1f%%", mean_pct)
+    ),
+    hjust = -0.15,
+    size = 3.5
+  ) +
+
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1,
+    limits = c(0, 100)
+  ) +
+
+  scale_y_continuous(
+    breaks = seq(0, 100, by = 20),
+    labels = scales::label_number(suffix = "%"),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+
+  coord_flip(
+    ylim = c(0, 105),
+    clip = "off"
+  ) +
+
+  labs(
+    title = "Consistently Available Infrastructure by Country",
+    subtitle = "Mean percentage of infrastructure items consistently available across surveyed facilities",
+    x = NULL,
+    y = "Infrastructure consistently available (%)",
+    caption = paste(
+      "Percentages based on 14 assessed infrastructure items.",
+      "Facility-level modal surgeon responses were used.",
+      "Only facilities with complete classifications included.",
+      "n = number of facilities."
+    )
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+
+    legend.position = "none",
+
+    plot.caption = element_text(
+      color = "grey40",
+      size = 9,
+      hjust = 0
+    ),
+
+    plot.margin = margin(10, 50, 10, 10)
+  )
+
+infra_consistency_bar
+
+```
+### Heatmap by country and infrastructure
+
+```{r}
+
+# ============================================================
+# FIGURE 7.3 — CONSISTENT INFRASTRUCTURE AVAILABILITY BY COUNTRY
+# Facility-level modal surgeon responses
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Define valid availability categories
+# ------------------------------------------------------------
+
+availability_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+# ------------------------------------------------------------
+# 2. Prepare facility-level infrastructure data
+# ------------------------------------------------------------
+
+infra_valid <- infra_facility_country %>%
+  mutate(
+    facility_country = str_squish(
+      as.character(facility_country)
+    ),
+    facility_name = str_squish(
+      as.character(facility_name)
+    ),
+    availability = as.character(availability)
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != "",
+    !is.na(facility_name),
+    facility_name != "",
+    item %in% infra_names,
+    availability %in% availability_levels
+  ) %>%
+  distinct(
+    facility_country,
+    facility_name,
+    item,
+    .keep_all = TRUE
+  )
+
+# ------------------------------------------------------------
+# 3. Calculate consistent availability by country and item
+# ------------------------------------------------------------
+
+infra_country_heatmap <- infra_valid %>%
+  group_by(facility_country, item) %>%
+  summarise(
+    n_facilities = n_distinct(facility_name),
+
+    n_consistently = n_distinct(
+      facility_name[availability == "consistently"]
+    ),
+
+    .groups = "drop"
+  )
+
+# Complete all country-infrastructure combinations
+all_countries <- infra_facility_country %>%
+  filter(
+    !is.na(facility_country),
+    str_squish(as.character(facility_country)) != ""
+  ) %>%
+  pull(facility_country) %>%
+  as.character() %>%
+  str_squish() %>%
+  unique()
+
+infra_country_heatmap <- infra_country_heatmap %>%
+  complete(
+    facility_country = all_countries,
+    item = infra_names,
+    fill = list(
+      n_facilities = 0L,
+      n_consistently = 0L
+    )
+  ) %>%
+  mutate(
+    percent = if_else(
+      n_facilities > 0,
+      100 * n_consistently / n_facilities,
+      NA_real_
+    ),
+
+    # Percentage with numerator and denominator
+    cell_label = if_else(
+      is.na(percent),
+      "NR",
+      sprintf(
+        "%.1f%%\n(%s/%s)",
+        percent,
+        n_consistently,
+        n_facilities
+      )
+    )
+  )
+
+# ------------------------------------------------------------
+# 4. Order countries by mean consistent availability
+# ------------------------------------------------------------
+
+country_order <- infra_valid %>%
+  group_by(facility_country, facility_name) %>%
+  summarise(
+    pct_consistently = 100 * mean(
+      availability == "consistently"
+    ),
+    .groups = "drop"
+  ) %>%
+  group_by(facility_country) %>%
+  summarise(
+    mean_pct = mean(pct_consistently),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(mean_pct)) %>%
+  pull(facility_country)
+
+# Include countries without valid classifications
+country_order <- c(
+  country_order,
+  setdiff(all_countries, country_order)
+)
+
+# ------------------------------------------------------------
+# 5. Order infrastructure by overall consistent availability
+# ------------------------------------------------------------
+
+infrastructure_order <- infra_valid %>%
+  group_by(item) %>%
+  summarise(
+    percent = 100 * mean(
+      availability == "consistently"
+    ),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(percent)) %>%
+  pull(item)
+
+# Include items with no valid classifications
+infrastructure_order <- c(
+  infrastructure_order,
+  setdiff(infra_names, infrastructure_order)
+)
+
+# Apply factor ordering
+infra_country_heatmap <- infra_country_heatmap %>%
+  mutate(
+    facility_country = factor(
+      facility_country,
+      levels = country_order
+    ),
+
+    item = factor(
+      item,
+      levels = rev(infrastructure_order)
+    )
+  )
+
+# ------------------------------------------------------------
+# 6. Create country-by-infrastructure heatmap
+# ------------------------------------------------------------
+
+infra_country_heatmap_plot <- ggplot(
+  infra_country_heatmap,
+  aes(
+    x = facility_country,
+    y = item,
+    fill = percent
+  )
+) +
+
+  # Heatmap tiles
+  geom_tile(
+    color = "white",
+    linewidth = 0.7
+  ) +
+
+  # Percentage and facility count labels
+  geom_text(
+    aes(
+      label = cell_label,
+
+      color = case_when(
+        is.na(percent) ~ "grey50",
+        percent == 0 ~ "grey50",
+        percent >= 50 ~ "white",
+        TRUE ~ "black"
+      )
+    ),
+    size = 2.7,
+    lineheight = 0.9,
+    show.legend = FALSE
+  ) +
+
+  scale_color_identity() +
+
+  # YlOrRd gradient
+  scale_fill_gradientn(
+    colours = c(
+      "white",
+      RColorBrewer::brewer.pal(9, "YlOrRd")
+    ),
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x) paste0(x, "%"),
+    name = "Facilities (%)",
+    na.value = "grey90"
+  ) +
+
+  # Country labels
+  scale_x_discrete(
+    labels = function(x) {
+      stringr::str_to_title(
+        stringr::str_replace_all(x, "_", " ")
+      )
+    },
+    drop = FALSE
+  ) +
+
+  # Infrastructure labels
+  scale_y_discrete(
+    labels = function(x) {
+      stringr::str_wrap(
+        dplyr::coalesce(
+          unname(infrastructure_labels[x]),
+          x
+        ),
+        width = 35
+      )
+    },
+    drop = FALSE
+  ) +
+
+  labs(
+    title = "Consistent Infrastructure Availability by Country",
+
+    subtitle = paste(
+      "Percentage of surveyed facilities with",
+      "consistently available infrastructure"
+    ),
+
+    x = NULL,
+    y = NULL,
+
+    caption = paste(
+      "Cells show percentage (n/N) of facilities with",
+      "consistent availability.",
+      "Facility classifications based on modal surgeon responses.",
+      "Denominators include valid, unambiguous classifications.",
+      "NR = no valid facility classifications."
+    )
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 14
+    ),
+
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40"
+    ),
+
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      size = 9
+    ),
+
+    axis.text.y = element_text(
+      size = 10
+    ),
+
+    axis.ticks = element_blank(),
+
+    panel.grid = element_blank(),
+
+    legend.position = "right",
+
+    legend.title = element_text(
+      face = "bold"
+    ),
+
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    ),
+
+    plot.margin = margin(10, 15, 10, 10)
+  )
+
+# ------------------------------------------------------------
+# 7. Display heatmap
+# ------------------------------------------------------------
+
+infra_country_heatmap_plot
+```
+
+
+### Critical Infrastrucutre Gaps
+
+```{r}
+
+# ============================================================
+# FIGURE 7.3 — CRITICAL INFRASTRUCTURE GAPS
+# Consistently Available vs. Not Available
+# ============================================================
+
+# -------------------------------------------------------
+# 1. Define infrastructure variables and labels
+# -------------------------------------------------------
+
+infra_names <- df %>%
+  select(starts_with("infra_")) %>%
+  names()
+
+infrastructure_labels <- c(
+  "infra_electricity" = "Electricity",
+  "infra_water" = "Running Water",
+  "infra_oxygen" = "Oxygen Supply",
+  "infra_blood_bank" = "Blood Bank",
+  "infra_icu" = "Intensive Care Unit (ICU)",
+  "infra_physio" = "Physiotherapy Services",
+  "infra_ot_therapy" = "Occupational Therapy Services",
+  "infra_histopath" = "Histopathology Services",
+  "infra_xray" = "X-Ray",
+  "infra_ultrasound" = "Ultrasound",
+  "infra_ct" = "CT Scanner",
+  "infra_dedicated_or" = "Dedicated Operating Room Time for PRS",
+  "infra_temp_or" = "Temperature-Controlled Operating Room",
+  "infra_warming" = "Patient Warming Devices"
+)
+
+availability_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+# -------------------------------------------------------
+# 2. Calculate facility-level availability percentages
+# -------------------------------------------------------
+
+infra_gap_data <- infra_facility_summary %>%
+
+  # Keep valid, unambiguous facility classifications
+  filter(
+    availability %in% availability_levels,
+    item %in% infra_names
+  ) %>%
+
+  # Ensure one observation per facility and item
+  distinct(
+    facility_name,
+    item,
+    .keep_all = TRUE
+  ) %>%
+
+  # Count facilities per availability category
+  count(
+    item,
+    availability,
+    name = "n"
+  ) %>%
+
+  # Include zero-count categories
+  complete(
+    item = infra_names,
+    availability = availability_levels,
+    fill = list(n = 0)
+  ) %>%
+
+  # Calculate percentages within each infrastructure item
+  group_by(item) %>%
+  mutate(
+    total = sum(n),
+
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+# View calculated data
+infra_gap_data
+
+
+# -------------------------------------------------------
+# 3. Sort infrastructure by percentage not available
+# -------------------------------------------------------
+
+infrastructure_gap_order <- infra_gap_data %>%
+  filter(availability == "not_available") %>%
+  arrange(desc(percent), item) %>%
+  pull(item)
+
+
+# -------------------------------------------------------
+# 4. Prepare diverging bar chart data
+# -------------------------------------------------------
+
+infra_diverging_data <- infra_gap_data %>%
+
+  # Display only consistently and not available
+  filter(
+    availability %in% c(
+      "consistently",
+      "not_available"
+    )
+  ) %>%
+
+  mutate(
+    # Negative percentages extend left
+    plot_percent = if_else(
+      availability == "not_available",
+      -percent,
+      percent
+    ),
+
+    # Availability labels
+    availability_label = case_when(
+      availability == "not_available" ~
+        "Not Available",
+
+      availability == "consistently" ~
+        "Consistently Available"
+    ),
+
+    # Labels with percentages and facility counts
+    pct_label = if_else(
+      is.na(percent),
+      "NR",
+      sprintf(
+        "%.1f%% (%s/%s)",
+        percent,
+        n,
+        total
+      )
+    ),
+
+    # Order infrastructure from most unavailable to least
+    item = factor(
+      item,
+      levels = rev(infrastructure_gap_order)
+    )
+  )
+
+# View plotting data
+infra_diverging_data
+
+
+# -------------------------------------------------------
+# 5. Create diverging horizontal bar chart
+# -------------------------------------------------------
+
+infra_gap_plot <- ggplot(
+  infra_diverging_data,
+  aes(
+    x = plot_percent,
+    y = item,
+    fill = availability_label
+  )
+) +
+
+  # Horizontal bars
+  geom_col(
+    width = 0.7,
+    position = "identity",
+    na.rm = TRUE
+  ) +
+
+  # Percentage and facility count labels
+  geom_text(
+    aes(
+      label = pct_label,
+      hjust = if_else(
+        availability == "not_available",
+        1.08,
+        -0.08
+      )
+    ),
+    size = 3.2,
+    color = "black",
+    na.rm = TRUE
+  ) +
+
+  # Center reference line
+  geom_vline(
+    xintercept = 0,
+    color = "grey40",
+    linewidth = 0.6
+  ) +
+
+  # Red and green colors
+  scale_fill_manual(
+    values = c(
+      "Not Available" = "#C0392B",
+      "Consistently Available" = "#2E8B57"
+    ),
+    breaks = c(
+      "Not Available",
+      "Consistently Available"
+    )
+  ) +
+
+  # Symmetrical percentage axis
+  scale_x_continuous(
+    breaks = seq(-100, 100, by = 25),
+    labels = function(x) {
+      paste0(abs(x), "%")
+    }
+  ) +
+
+  coord_cartesian(
+    xlim = c(-125, 125),
+    clip = "off"
+  ) +
+
+  # Infrastructure names
+  scale_y_discrete(
+    labels = function(x) {
+      stringr::str_wrap(
+        dplyr::coalesce(
+          unname(infrastructure_labels[x]),
+          x
+        ),
+        width = 35
+      )
+    },
+    drop = FALSE
+  ) +
+
+  # Titles and captions
+  labs(
+    title = "Critical Infrastructure Gaps",
+
+    subtitle = paste(
+      "Consistently available versus unavailable",
+      "infrastructure across surveyed facilities"
+    ),
+
+    x = "Percentage of Facilities",
+    y = NULL,
+    fill = NULL,
+
+    caption = paste(
+      "Percentages are based on facility-level modal",
+      "surgeon responses.",
+      "Intermittently available infrastructure is included",
+      "in denominators but not displayed.",
+      "Missing and tied classifications are excluded.",
+      "Labels show percentage (n/N)."
+    )
+  ) +
+
+  # General theme
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 14
+    ),
+
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40"
+    ),
+
+    axis.text.y = element_text(
+      size = 10
+    ),
+
+    axis.text.x = element_text(
+      size = 10
+    ),
+
+    axis.ticks = element_blank(),
+
+    axis.title.y = element_blank(),
+
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+
+    legend.position = "top",
+
+    legend.text = element_text(
+      size = 10
+    ),
+
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    ),
+
+    plot.margin = margin(10, 40, 10, 10)
+  )
+
+
+# -------------------------------------------------------
+# 6. Display figure
+# -------------------------------------------------------
+
+infra_gap_plot
+
+
+# -------------------------------------------------------
+# 7. Save figure
+# -------------------------------------------------------
+
+output_dir <- here::here("images")
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+ggsave(
+  filename = file.path(
+    output_dir,
+    "figure_7_3_critical_infrastructure_gaps.png"
+  ),
+  plot = infra_gap_plot,
+  width = 12,
+  height = 9,
+  dpi = 300,
+  bg = "white"
+)
+
+```
+#### By country
+
+```{r}
+
+# ============================================================
+# CRITICAL INFRASTRUCTURE GAPS BY COUNTRY
+# One diverging bar chart per country
+# ============================================================
+
+# -------------------------------------------------------
+# 1. Prepare country-specific infrastructure data
+# -------------------------------------------------------
+
+availability_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+# Count facility-level availability classifications
+infra_country_gap_data <- infra_facility_country %>%
+  mutate(
+    facility_country = str_squish(
+      as.character(facility_country)
+    ),
+    availability = as.character(availability)
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != "",
+    item %in% infra_names,
+    availability %in% availability_levels
+  ) %>%
+  distinct(
+    facility_country,
+    facility_name,
+    item,
+    .keep_all = TRUE
+  ) %>%
+  count(
+    facility_country,
+    item,
+    availability,
+    name = "n"
+  ) %>%
+  complete(
+    nesting(facility_country),
+    item = infra_names,
+    availability = availability_levels,
+    fill = list(n = 0)
+  ) %>%
+  group_by(facility_country, item) %>%
+  mutate(
+    total = sum(n),
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+
+# -------------------------------------------------------
+# 2. Function to create a plot for one country
+# -------------------------------------------------------
+
+plot_country_infra_gap <- function(country_name) {
+
+  # Filter selected country
+  country_data <- infra_country_gap_data %>%
+    filter(facility_country == country_name)
+
+  if (nrow(country_data) == 0) {
+    stop(paste("No data found for", country_name))
+  }
+
+  # Number of unique facilities in this country
+  n_facilities <- infra_facility_country %>%
+    filter(facility_country == country_name) %>%
+    summarise(n = n_distinct(facility_name)) %>%
+    pull(n)
+
+  # Order infrastructure by % not available
+  infrastructure_order <- country_data %>%
+    filter(availability == "not_available") %>%
+    arrange(desc(percent), item) %>%
+    pull(item)
+
+  # Prepare diverging data
+  plot_data <- country_data %>%
+    filter(
+      availability %in% c(
+        "not_available",
+        "consistently"
+      )
+    ) %>%
+    mutate(
+      plot_percent = if_else(
+        availability == "not_available",
+        -percent,
+        percent
+      ),
+
+      availability_label = case_when(
+        availability == "not_available" ~
+          "Not Available",
+        availability == "consistently" ~
+          "Consistently Available"
+      ),
+
+      pct_label = if_else(
+        is.na(percent),
+        "NR",
+        sprintf(
+          "%.1f%% (%s/%s)",
+          percent,
+          n,
+          total
+        )
+      ),
+
+      item = factor(
+        item,
+        levels = rev(infrastructure_order)
+      )
+    )
+
+  # Create diverging horizontal bar chart
+  ggplot(
+    plot_data,
+    aes(
+      x = plot_percent,
+      y = item,
+      fill = availability_label
+    )
+  ) +
+
+    geom_col(
+      width = 0.7,
+      position = "identity",
+      na.rm = TRUE
+    ) +
+
+    geom_text(
+      aes(
+        label = pct_label,
+        hjust = if_else(
+          availability == "not_available",
+          1.08,
+          -0.08
+        )
+      ),
+      size = 3,
+      color = "black"
+    ) +
+
+    geom_vline(
+      xintercept = 0,
+      color = "grey40",
+      linewidth = 0.6
+    ) +
+
+    scale_fill_manual(
+      values = c(
+        "Not Available" = "#C0392B",
+        "Consistently Available" = "#2E8B57"
+      ),
+      breaks = c(
+        "Not Available",
+        "Consistently Available"
+      )
+    ) +
+
+    scale_x_continuous(
+      breaks = seq(-100, 100, by = 25),
+      labels = function(x) paste0(abs(x), "%")
+    ) +
+
+    coord_cartesian(
+      xlim = c(-125, 125),
+      clip = "off"
+    ) +
+
+    scale_y_discrete(
+      labels = function(x) {
+        stringr::str_wrap(
+          dplyr::coalesce(
+            unname(infrastructure_labels[x]),
+            x
+          ),
+          width = 35
+        )
+      },
+      drop = FALSE
+    ) +
+
+    labs(
+      title = paste(
+        "Critical Infrastructure Gaps —",
+        country_name
+      ),
+
+      subtitle = paste0(
+        "Consistently available vs. not available (N = ",
+        n_facilities,
+        " facilities)"
+      ),
+
+      x = "Percentage of Facilities",
+      y = NULL,
+      fill = NULL,
+
+      caption = paste(
+        "Facility-level modal surgeon responses.",
+        "Intermittently available resources included",
+        "in denominators but not displayed.",
+        "Missing and tied classifications excluded.",
+        "Labels show percentage (n/N)."
+      )
+    ) +
+
+    theme_minimal(base_size = 12) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 14
+      ),
+
+      plot.subtitle = element_text(
+        size = 10,
+        color = "grey40"
+      ),
+
+      axis.text.y = element_text(
+        size = 10
+      ),
+
+      axis.ticks = element_blank(),
+
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+
+      legend.position = "top",
+
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+
+      plot.margin = margin(10, 40, 10, 10)
+    )
+}
+
+
+# -------------------------------------------------------
+# 3. Get all countries
+# -------------------------------------------------------
+
+countries <- infra_country_gap_data %>%
+  distinct(facility_country) %>%
+  pull(facility_country)
+
+
+# -------------------------------------------------------
+# 4. Create individual plots for every country
+# -------------------------------------------------------
+
+country_infra_gap_plots <- setNames(
+  lapply(countries, plot_country_infra_gap),
+  countries
+)
+
+
+# -------------------------------------------------------
+# 5. Display a specific country
+# -------------------------------------------------------
+
+# View all country names
+names(country_infra_gap_plots)
+
+# Example
+# print(country_infra_gap_plots[["Kenya"]])
+
+# Or call the function directly
+# plot_country_infra_gap("Kenya")
+
+
+# -------------------------------------------------------
+# 6. Save all country-specific plots
+# -------------------------------------------------------
+
+# Define output directory
+output_dir <- here(
+  "images",
+  "country_infrastructure_gaps"
+)
+
+# Create folder if it doesn't exist
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+# Save one figure per country
+for (country in countries) {
+
+  filename <- file.path(
+    output_dir,
+    paste0(
+      gsub("[^A-Za-z0-9]+", "_", country),
+      "_infrastructure_gaps.png"
+    )
+  )
+
+  ggsave(
+    filename = filename,
+    plot = country_infra_gap_plots[[country]],
+    width = 12,
+    height = 9,
+    dpi = 300,
+    bg = "white"
+  )
+}
+
+```
+
+
+# EQUIPMENT
+
+## Availability
+
+### Heatmap
+
+```{r heatmap include=F}
+# Create list of variables
+equipment_vars <- df %>% 
+  select(starts_with("eq_"))
+
+eq_response_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+# Equipment and supplies labels
+equipment_labels <- c(
+  "eq_dermatome"        = "Dermatome/Humby Knife",
+  "eq_skin_mesher"      = "Skin Mesher",
+  "eq_burn_dressings"   = "Burn Dressings",
+  "eq_skin_substitutes" = "Skin Substitutes",
+  "eq_npwt"             = "Negative Pressure Wound Therapy (VAC)",
+  "eq_electrosurgical"  = "Electrosurgical Unit",
+  "eq_sterilization"    = "Sterilization Equipment",
+  "eq_anesthesia"       = "Functional Anesthesia Machine",
+  "eq_ventilator"       = "Mechanical Ventilator",
+  "eq_pulse_oximeter"   = "Pulse Oximeter",
+  "eq_loupes"           = "Surgical Loupes",
+  "eq_microsurgical"    = "Microsurgical Instruments",
+  "eq_microscope"       = "Operating Microscope",
+  "eq_sutures"          = "Fine Monofilament Sutures",
+  "eq_iv_fluids"        = "IV Fluids",
+  "eq_catheters"        = "Urinary Catheters",
+  "eq_tourniquets"      = "Tourniquets",
+  "eq_splinting"        = "Splinting Materials"
+)
+
+equipment_long <- equipment_vars %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "equipment",
+    values_to = "frequency"
+  ) %>%
+  mutate(
+    frequency = str_squish(as.character(frequency)),
+    frequency = factor(
+      frequency,
+      levels = eq_response_levels
+    )
+  )
+
+```
+
+```{r calculate_heatmap include=F}
+# Calculate the heatmap percentages
+eq_heatmap_data <- equipment_long %>%
+  filter(!is.na(frequency)) %>%
+  count(equipment, frequency, name = "n") %>%
+  complete(
+    equipment,
+    frequency = factor(
+      eq_response_levels,
+      levels = eq_response_levels
+    ),
+    fill = list(n = 0)
+  ) %>%
+  group_by(equipment) %>%
+  mutate(
+    total = sum(n),
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+# Order equipment by % consistently performed
+equipment_order <- eq_heatmap_data %>%
+  filter(frequency == "consistently") %>%
+  arrange(desc(percent)) %>%
+  pull(equipment)
+
+eq_heatmap_data <- eq_heatmap_data %>%
+  mutate(
+    equipment = factor(
+      equipment,
+      levels = rev(equipment_order)
+    )
+  )
+
+```
+
+```{r create_heatmap echo=F}
+# Create heatmap
+ggplot(eq_heatmap_data, aes(x = frequency, y = equipment, fill = percent)) +
+  geom_tile(color = "white", linewidth = 0.7) +
+  geom_text(aes(
+    label = sprintf("%.1f%%", percent),
+    color = case_when(percent == 0 ~ "grey50", 
+                      percent >= 50 ~ "white", 
+                      TRUE ~ "black")
+  ),
+  size = 3.5,
+  show.legend = FALSE) +
+  scale_color_identity() +
+  scale_fill_gradientn(
+    colours = c("white", RColorBrewer::brewer.pal(9, "YlOrRd")),
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x)
+      paste0(x, "%"),
+    name = "Respondents (%)"
+  ) +
+  scale_x_discrete(labels = c("Consistently", "Intermittently", "Not Available")) +
+  labs(
+    title = "Equipment Available",
+    subtitle = "Distribution of surgeon-reported equipment frequency",
+    x = NULL,
+    y = NULL,
+    caption = paste(
+      "Percentages calculated from valid responses",
+      "for each infrastructure."
+    )
+  ) +
+  
+  scale_y_discrete(
+    labels = function(x) {
+      dplyr::coalesce(unname(equipment_labels[x]), x)
+    }
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+```
+
+### Essential vs. Specialized
+
+```{r}
+# -------------------------------------------------------
+# 1. Define equipment groups
+# -------------------------------------------------------
+
+equipment_groups <- c(
+  # Essential equipment and supplies
+  "eq_burn_dressings"   = "Essential",
+  "eq_electrosurgical"  = "Essential",
+  "eq_sterilization"    = "Essential",
+  "eq_anesthesia"       = "Essential",
+  "eq_pulse_oximeter"   = "Essential",
+  "eq_sutures"          = "Essential",
+  "eq_iv_fluids"        = "Essential",
+  "eq_catheters"        = "Essential",
+  "eq_tourniquets"      = "Essential",
+  "eq_splinting"        = "Essential",
+
+  # PRS-specific equipment
+  "eq_dermatome"        = "PRS-specific",
+  "eq_skin_mesher"      = "PRS-specific",
+  "eq_loupes"           = "PRS-specific",
+  "eq_microsurgical"    = "PRS-specific",
+
+  # Advanced equipment
+  "eq_microscope"       = "Advanced",
+  "eq_npwt"             = "Advanced",
+  "eq_skin_substitutes" = "Advanced",
+  "eq_ventilator"       = "Advanced"
+)
+
+# Create equipment classification dataframe
+equipment_classification <- tibble(
+  item = names(equipment_groups),
+  group = factor(
+    unname(equipment_groups),
+    levels = c(
+      "Essential",
+      "PRS-specific",
+      "Advanced"
+    )
+  )
+)
+
+# Verify all equipment variables are classified
+setdiff(eq_names, names(equipment_groups))
+
+```
+```{r}
+
+# -------------------------------------------------------
+# 2. Create facility-country lookup
+# -------------------------------------------------------
+
+equipment_country_lookup <- facility_df %>%
+  transmute(
+    facility_name = str_squish(
+      as.character(facility_name)
+    ),
+    facility_country = na_if(
+      str_squish(as.character(facility_country)),
+      ""
+    )
+  ) %>%
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+  distinct()
+
+# Check conflicting countries
+conflicts <- equipment_country_lookup %>%
+  group_by(facility_name) %>%
+  summarise(
+    n_countries = n_distinct(
+      facility_country,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  ) %>%
+  filter(n_countries > 1)
+
+if (nrow(conflicts) > 0) {
+  stop("Resolve conflicting facility-country assignments.")
+}
+
+# Keep one country per facility
+equipment_country_lookup <- equipment_country_lookup %>%
+  arrange(facility_name, is.na(facility_country)) %>%
+  distinct(facility_name, .keep_all = TRUE)
+
+# Add country to aggregated equipment data
+eq_facility_country <- eq_facility_summary %>%
+  left_join(
+    equipment_country_lookup,
+    by = "facility_name",
+    relationship = "many-to-one"
+  )
+
+```
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Calculate equipment availability percentages
+# -------------------------------------------------------
+
+calculate_equipment_availability <- function(
+    data,
+    country_name = NULL
+) {
+
+  # Filter by country if specified
+  if (!is.null(country_name)) {
+    data <- data %>%
+      filter(facility_country == country_name)
+  }
+
+  if (nrow(data) == 0) {
+    stop("No equipment data found.")
+  }
+
+  # Calculate availability for each equipment item
+  equipment_summary <- data %>%
+    filter(item %in% equipment_classification$item) %>%
+    group_by(item) %>%
+    summarise(
+      n_facilities = n_distinct(
+        facility_name[
+          availability %in% c(
+            "consistently",
+            "intermittently",
+            "not_available"
+          )
+        ]
+      ),
+
+      n_consistently = n_distinct(
+        facility_name[
+          availability == "consistently"
+        ]
+      ),
+
+      .groups = "drop"
+    )
+
+  # Combine classification and results
+  equipment_classification %>%
+    left_join(
+      equipment_summary,
+      by = "item"
+    ) %>%
+    mutate(
+      n_facilities = replace_na(n_facilities, 0L),
+      n_consistently = replace_na(n_consistently, 0L),
+
+      percent = if_else(
+        n_facilities > 0,
+        100 * n_consistently / n_facilities,
+        NA_real_
+      ),
+
+      pct_label = if_else(
+        is.na(percent),
+        "NR",
+        sprintf(
+          "%.1f%% (%s/%s)",
+          percent,
+          n_consistently,
+          n_facilities
+        )
+      )
+    )
+}
+
+```
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Plot equipment availability
+# -------------------------------------------------------
+
+plot_equipment_availability <- function(
+    equipment_data,
+    title,
+    subtitle
+) {
+
+  # Order equipment within each group
+  equipment_data <- equipment_data %>%
+    arrange(group, desc(percent), item) %>%
+    mutate(
+      item = factor(
+        item,
+        levels = rev(item)
+      )
+    )
+
+  # Create grouped horizontal bar chart
+  ggplot(
+    equipment_data,
+    aes(
+      x = percent,
+      y = item,
+      fill = percent
+    )
+  ) +
+
+    geom_col(
+      width = 0.75,
+      na.rm = TRUE
+    ) +
+
+    # Percentages and facility counts
+    geom_text(
+      aes(
+        x = if_else(
+          is.na(percent),
+          2,
+          percent + 2
+        ),
+        label = pct_label
+      ),
+      hjust = 0,
+      size = 3.2,
+      color = "black"
+    ) +
+
+    # Same YlOrRd theme
+    scale_fill_distiller(
+      palette = "YlOrRd",
+      direction = 1,
+      limits = c(0, 100)
+    ) +
+
+    # Percent axis
+    scale_x_continuous(
+      breaks = seq(0, 100, by = 20),
+      labels = label_number(suffix = "%")
+    ) +
+
+    coord_cartesian(
+      xlim = c(0, 125),
+      clip = "off"
+    ) +
+
+    # Equipment labels
+    scale_y_discrete(
+      labels = function(x) {
+        stringr::str_wrap(
+          dplyr::coalesce(
+            unname(equipment_labels[x]),
+            x
+          ),
+          width = 35
+        )
+      }
+    ) +
+
+    # Group equipment into three sections
+    facet_grid(
+      rows = vars(group),
+      scales = "free_y",
+      space = "free_y",
+      switch = "y"
+    ) +
+
+    labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Facilities with Consistent Availability (%)",
+      y = NULL,
+      fill = NULL,
+      caption = paste(
+        "Percentages calculated among facilities with valid,",
+        "unambiguous item-level classifications.",
+        "Facility availability based on modal surgeon responses.",
+        "Labels show percentage (n/N). NR = no valid classifications."
+      )
+    ) +
+
+    theme_minimal(base_size = 12) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 14
+      ),
+
+      plot.subtitle = element_text(
+        color = "grey40",
+        size = 10
+      ),
+
+      axis.text.y = element_text(
+        size = 10
+      ),
+
+      axis.ticks = element_blank(),
+
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+
+      strip.text.y.left = element_text(
+        face = "bold",
+        size = 11
+      ),
+
+      strip.placement = "outside",
+
+      panel.spacing.y = unit(1.2, "lines"),
+
+      legend.position = "none",
+
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+
+      plot.margin = margin(10, 45, 10, 10)
+    )
+}
+
+```
+
+```{r}
+
+# -------------------------------------------------------
+# Overall Equipment Availability
+# -------------------------------------------------------
+
+# Calculate overall percentages
+equipment_overall_data <- calculate_equipment_availability(
+  data = eq_facility_country
+)
+
+# Total number of unique facilities
+n_facilities <- eq_facility_country %>%
+  summarise(
+    n = n_distinct(facility_name, na.rm = TRUE)
+  ) %>%
+  pull(n)
+
+# Create overall figure
+equipment_overall_plot <- plot_equipment_availability(
+  equipment_data = equipment_overall_data,
+
+  title = "Essential vs. Specialized Equipment Availability",
+
+  subtitle = paste0(
+    "Consistent equipment availability across surveyed facilities",
+    " (N = ", n_facilities, ")"
+  )
+)
+
+# Display
+equipment_overall_plot
+
+```
+
+#### Per country
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Equipment availability by country
+# -------------------------------------------------------
+
+plot_country_equipment <- function(country_name) {
+
+  # Filter selected country
+  country_data <- eq_facility_country %>%
+    filter(facility_country == country_name)
+
+  if (nrow(country_data) == 0) {
+    stop(paste("No data found for", country_name))
+  }
+
+  # Number of unique facilities
+  n_facilities <- country_data %>%
+    summarise(
+      n = n_distinct(facility_name, na.rm = TRUE)
+    ) %>%
+    pull(n)
+
+  # Calculate availability for selected country
+  country_equipment_data <- calculate_equipment_availability(
+    data = eq_facility_country,
+    country_name = country_name
+  )
+
+  # Generate country-specific chart
+  plot_equipment_availability(
+    equipment_data = country_equipment_data,
+
+    title = paste(
+      "Equipment Availability —",
+      country_name
+    ),
+
+    subtitle = paste0(
+      "Essential, PRS-specific, and advanced equipment",
+      " (N = ", n_facilities, " facilities)"
+    )
+  )
+}
+
+
+# -------------------------------------------------------
+# Get all countries
+# -------------------------------------------------------
+
+countries <- eq_facility_country %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != ""
+  ) %>%
+  distinct(facility_country) %>%
+  pull(facility_country)
+
+
+# -------------------------------------------------------
+# Create individual plots for every country
+# -------------------------------------------------------
+
+country_equipment_plots <- setNames(
+  lapply(countries, plot_country_equipment),
+  countries
+)
+
+
+# -------------------------------------------------------
+# Display one country
+# -------------------------------------------------------
+
+# View available countries
+names(country_equipment_plots)
+
+# Example
+# print(country_equipment_plots[["Kenya"]])
+
+# Or run directly
+# plot_country_equipment("Uganda")
+
+```
+
+
+```{r}
+
+# -------------------------------------------------------
+# Save Overall Equipment Availability
+# -------------------------------------------------------
+
+overall_dir <- here("images")
+
+dir.create(
+  overall_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+ggsave(
+  filename = file.path(
+    overall_dir,
+    "equipment_availability.png"
+  ),
+  plot = equipment_overall_plot,
+  width = 12,
+  height = 10,
+  dpi = 300,
+  bg = "white"
+)
+
+
+# -------------------------------------------------------
+# Save Country-Specific Equipment Availability
+# -------------------------------------------------------
+
+output_dir <- here(
+  "images",
+  "country_equipment_availability"
+)
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+# Save one plot per country
+for (country in countries) {
+
+  filename <- file.path(
+    output_dir,
+    paste0(
+      gsub("[^A-Za-z0-9]+", "_", country),
+      "_equipment_availability.png"
+    )
+  )
+
+  ggsave(
+    filename = filename,
+    plot = country_equipment_plots[[country]],
+    width = 12,
+    height = 10,
+    dpi = 300,
+    bg = "white"
+  )
+}
+
+```
+
+
+# EQUIPMENT & SUPPLIES (FACILITY LEVEL)
 
 ## Availability
 
 ```{r}
 
+# Availability categories
+availability_levels <- c(
+  "consistently",
+  "intermittently",
+  "not_available"
+)
+
+
+# -------------------------------------------------------
+# Function: Aggregate surgeon responses by facility
+# -------------------------------------------------------
+
+aggregate_facility_availability <- function(
+    data,
+    variables,
+    facility_var = "main_facility_name"
+) {
+
+  # Check required columns
+  required <- c(variables, facility_var)
+
+  if (!all(required %in% names(data))) {
+    stop(
+      "Missing columns: ",
+      paste(setdiff(required, names(data)), collapse = ", ")
+    )
+  }
+
+  # Convert surgeon responses into long format
+  long_data <- data %>%
+    mutate(
+      facility_name = str_squish(
+        as.character(.data[[facility_var]])
+      )
+    ) %>%
+    filter(
+      !is.na(facility_name),
+      facility_name != ""
+    ) %>%
+    select(
+      facility_name,
+      all_of(variables)
+    ) %>%
+    pivot_longer(
+      cols = all_of(variables),
+      names_to = "item",
+      values_to = "frequency"
+    ) %>%
+    mutate(
+      frequency = str_squish(
+        str_to_lower(as.character(frequency))
+      ),
+      frequency = str_replace_all(
+        frequency, "\\s+", "_"
+      ),
+      frequency = na_if(frequency, "")
+    )
+
+  # Check unexpected response categories
+  unknown <- setdiff(
+    unique(na.omit(long_data$frequency)),
+    availability_levels
+  )
+
+  if (length(unknown) > 0) {
+    stop(
+      "Unrecognized availability responses: ",
+      paste(unknown, collapse = ", ")
+    )
+  }
+
+  # Count valid surgeon responses by facility and item
+  facility_counts <- long_data %>%
+    filter(!is.na(frequency)) %>%
+    count(
+      facility_name,
+      item,
+      frequency,
+      name = "n"
+    )
+
+  # Assign most frequently reported availability
+  facility_summary <- facility_counts %>%
+    group_by(
+      facility_name,
+      item
+    ) %>%
+    summarise(
+      n_surgeons = sum(n),
+
+      agreement_pct = 100 * max(n) / sum(n),
+
+      availability = if (
+        sum(n == max(n)) == 1
+      ) {
+        frequency[which.max(n)]
+      } else {
+        "no_consensus"
+      },
+
+      .groups = "drop"
+    )
+
+  return(facility_summary)
+}
+
+```
+
+#### Infrastructure
+
+```{r}
+# Extract infrastructure variable names
+infra_names <- df %>%
+  select(starts_with("infra_")) %>%
+  names()
+
+# Aggregate responses by facility
+infra_facility_summary <- aggregate_facility_availability(
+  data = df,
+  variables = infra_names,
+  facility_var = "main_facility_name"
+)
+
+infra_facility_summary
+```
+
+#### Equipment
+
+```{r}
+# Extract equipment variable names
+eq_names <- df %>%
+  select(starts_with("eq_")) %>%
+  names()
+
+# Aggregate responses by facility
+eq_facility_summary <- aggregate_facility_availability(
+  data = df,
+  variables = eq_names,
+  facility_var = "main_facility_name"
+)
+
+eq_facility_summary
+```
+
+### Calculate
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Calculate facility-level availability %
+# -------------------------------------------------------
+
+calculate_facility_heatmap <- function(facility_data) {
+
+  # Exclude tied responses from the three-category
+  # heatmap denominator
+  heatmap_data <- facility_data %>%
+    filter(
+      availability %in% availability_levels
+    ) %>%
+    mutate(
+      frequency = factor(
+        availability,
+        levels = availability_levels
+      )
+    ) %>%
+    count(item, frequency, name = "n") %>%
+    complete(
+      item,
+      frequency = factor(
+        availability_levels,
+        levels = availability_levels
+      ),
+      fill = list(n = 0)
+    ) %>%
+    group_by(item) %>%
+    mutate(
+      total = sum(n),
+      percent = if_else(
+        total > 0,
+        100 * n / total,
+        NA_real_
+      )
+    ) %>%
+    ungroup()
+
+  # Order items by consistently available %
+  item_order <- heatmap_data %>%
+    filter(frequency == "consistently") %>%
+    arrange(desc(percent)) %>%
+    pull(item)
+
+  heatmap_data %>%
+    mutate(
+      item = factor(
+        item,
+        levels = rev(item_order)
+      )
+    )
+}
+
+
+# -------------------------------------------------------
+# Infrastructure heatmap data
+# -------------------------------------------------------
+
+infra_facility_heatmap_data <- calculate_facility_heatmap(
+  infra_facility_summary
+)
+
+
+# -------------------------------------------------------
+# Equipment heatmap data
+# -------------------------------------------------------
+
+eq_facility_heatmap_data <- calculate_facility_heatmap(
+  eq_facility_summary
+)
+
+```
+
+
+### Create Heatmap
+
+```{r}
+# Infrastructure: summary of valid and disputed classifications
+infra_facility_summary %>%
+  group_by(item) %>%
+  summarise(
+    n_facilities = n(),
+    n_classified = sum(
+      availability %in% availability_levels
+    ),
+    n_no_consensus = sum(
+      availability == "no_consensus"
+    ),
+    .groups = "drop"
+  )
+
+# Equipment: summary of valid and disputed classifications
+eq_facility_summary %>%
+  group_by(item) %>%
+  summarise(
+    n_facilities = n(),
+    n_classified = sum(
+      availability %in% availability_levels
+    ),
+    n_no_consensus = sum(
+      availability == "no_consensus"
+    ),
+    .groups = "drop"
+  )
+```
+
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Plot facility-level availability heatmap
+# -------------------------------------------------------
+
+plot_facility_heatmap <- function(
+    heatmap_data,
+    item_labels,
+    title
+) {
+
+  ggplot(
+    heatmap_data,
+    aes(
+      x = frequency,
+      y = item,
+      fill = percent
+    )
+  ) +
+    geom_tile(
+      color = "white",
+      linewidth = 0.7
+    ) +
+    geom_text(
+      aes(
+        label = if_else(
+          is.na(percent),
+          "NR",
+          sprintf("%.1f%%", percent)
+        ),
+        color = case_when(
+          is.na(percent) ~ "grey50",
+          percent == 0 ~ "grey50",
+          percent >= 50 ~ "white",
+          TRUE ~ "black"
+        )
+      ),
+      size = 3.5,
+      show.legend = FALSE
+    ) +
+    scale_color_identity() +
+    scale_fill_gradientn(
+      colours = c(
+        "white",
+        RColorBrewer::brewer.pal(9, "YlOrRd")
+      ),
+      limits = c(0, 100),
+      breaks = c(0, 25, 50, 75, 100),
+      labels = function(x) paste0(x, "%"),
+      name = "Facilities (%)",
+      na.value = "grey90"
+    ) +
+    scale_x_discrete(
+      labels = c(
+        "Consistently",
+        "Intermittently",
+        "Not Available"
+      )
+    ) +
+    scale_y_discrete(
+      labels = function(x) {
+        dplyr::coalesce(
+          unname(item_labels[x]),
+          x
+        )
+      }
+    ) +
+    labs(
+      title = title,
+      subtitle = paste(
+        "Facility-level availability based on",
+        "the most commonly reported surgeon response"
+      ),
+      x = NULL,
+      y = NULL,
+      caption = paste(
+        "Percentages calculated among facilities with",
+        "valid, unambiguous classifications for each item.",
+        "Tied responses excluded. NR = no classified facilities."
+      )
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(
+        size = 10,
+        face = "bold"
+      ),
+      axis.text.y = element_text(size = 10),
+      plot.title = element_text(face = "bold"),
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+      legend.position = "none"
+    )
+}
+
+# -------------------------------------------------------
+# Infrastructure heatmap
+# -------------------------------------------------------
+
+infra_facility_heatmap <- plot_facility_heatmap(
+  heatmap_data = infra_facility_heatmap_data,
+  item_labels = infrastructure_labels,
+  title = "Infrastructure Availability Across Facilities"
+)
+
+# Display infrastructure heatmap
+infra_facility_heatmap
+
+
+# -------------------------------------------------------
+# Equipment heatmap
+# -------------------------------------------------------
+
+equipment_facility_heatmap <- plot_facility_heatmap(
+  heatmap_data = eq_facility_heatmap_data,
+  item_labels = equipment_labels,
+  title = "Equipment Availability Across Facilities"
+)
+
+# Display equipment heatmap
+equipment_facility_heatmap
+
+```
+
+# TRAINING
+
+## Table - Training Capacity at Facilities
+
+```{r}
+
+# ============================================================
+# SECTION 8 — TRAINING CAPACITY AND NEEDS
+# ============================================================
+
+# -------------------------------------------------------
+# 1. Training variables
+# -------------------------------------------------------
+
+training_vars <- c(
+  "trains_residents",
+  "hosts_outreach",
+  "cpd_available"
+)
+
+training_labels <- c(
+  "trains_residents" = "Trains PRS Residents/Fellows",
+  "hosts_outreach" = "Hosts Visiting Outreach Teams",
+  "cpd_available" = "Continuing Professional Development Opportunities Available"
+)
+
+# -------------------------------------------------------
+# 2. Create facility characteristics lookup
+# -------------------------------------------------------
+
+facility_training_lookup <- facility_df %>%
+  transmute(
+    facility_name = str_squish(
+      as.character(facility_name)
+    ),
+    facility_country = na_if(
+      str_squish(as.character(facility_country)), ""
+    ),
+    facility_level = na_if(
+      str_squish(as.character(facility_level)), ""
+    )
+  ) %>%
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+  group_by(facility_name) %>%
+  summarise(
+    across(
+      c(facility_country, facility_level),
+      ~ {
+        values <- unique(.x[!is.na(.x)])
+        if (length(values) > 1) {
+          stop("Conflicting facility characteristics found.")
+        }
+        if (length(values) == 0) {
+          NA_character_
+        } else {
+          values[1]
+        }
+      }
+    ),
+    .groups = "drop"
+  )
+
+# -------------------------------------------------------
+# 3. Convert surgeon training responses to long format
+# -------------------------------------------------------
+
+training_long <- df %>%
+  mutate(
+    facility_name = str_squish(
+      as.character(main_facility_name)
+    )
+  ) %>%
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+  select(
+    facility_name,
+    all_of(training_vars)
+  ) %>%
+  pivot_longer(
+    cols = all_of(training_vars),
+    names_to = "training_indicator",
+    values_to = "response"
+  ) %>%
+  mutate(
+    response = str_to_lower(
+      str_squish(as.character(response))
+    ),
+    response = na_if(response, ""),
+    response = if_else(
+      response %in% c("yes", "no"),
+      response,
+      NA_character_
+    )
+  )
+
+# -------------------------------------------------------
+# 4. Aggregate surgeon responses by facility
+# -------------------------------------------------------
+
+training_facility <- training_long %>%
+  filter(!is.na(response)) %>%
+  count(
+    facility_name,
+    training_indicator,
+    response,
+    name = "n"
+  ) %>%
+  group_by(
+    facility_name,
+    training_indicator
+  ) %>%
+  summarise(
+    n_surgeons = sum(n),
+
+    agreement_pct = 100 * max(n) / sum(n),
+
+    availability = if (
+      sum(n == max(n)) == 1
+    ) {
+      response[which.max(n)]
+    } else {
+      "no_consensus"
+    },
+
+    .groups = "drop"
+  ) %>%
+  left_join(
+    facility_training_lookup,
+    by = "facility_name",
+    relationship = "many-to-one"
+  )
+
+# View facility-level responses
+training_facility
+
+```
+
+
+```{r}
+
+
+# ============================================================
+# TABLE 8.1 — TRAINING CAPACITY AT FACILITIES
+# ============================================================
+
+# -------------------------------------------------------
+# 1. Function to summarize training capacity
+# -------------------------------------------------------
+
+summarise_training_capacity <- function(
+    data,
+    section_label
+) {
+
+  data %>%
+    group_by(training_indicator) %>%
+    summarise(
+      yes_n = sum(availability == "yes"),
+      no_n = sum(availability == "no"),
+
+      total = yes_n + no_n,
+
+      .groups = "drop"
+    ) %>%
+    right_join(
+      tibble(training_indicator = training_vars),
+      by = "training_indicator"
+    ) %>%
+    mutate(
+      across(
+        c(yes_n, no_n, total),
+        ~ replace_na(.x, 0L)
+      ),
+
+      Section = section_label,
+
+      Indicator = unname(
+        training_labels[training_indicator]
+      ),
+
+      `Yes N (%)` = if_else(
+        total > 0,
+        sprintf(
+          "%s (%.1f%%)",
+          yes_n,
+          100 * yes_n / pmax(total, 1)
+        ),
+        "NR"
+      ),
+
+      `No N (%)` = if_else(
+        total > 0,
+        sprintf(
+          "%s (%.1f%%)",
+          no_n,
+          100 * no_n / pmax(total, 1)
+        ),
+        "NR"
+      )
+    ) %>%
+    select(
+      Section,
+      Indicator,
+      `Yes N (%)`,
+      `No N (%)`
+    )
+}
+
+
+# -------------------------------------------------------
+# 2. Overall summary
+# -------------------------------------------------------
+
+training_overall <- summarise_training_capacity(
+  training_facility,
+  "Overall"
+)
+
+
+# -------------------------------------------------------
+# 3. Summary by facility level
+# -------------------------------------------------------
+
+training_by_level <- training_facility %>%
+  filter(
+    !is.na(facility_level),
+    facility_level != ""
+  ) %>%
+  group_split(facility_level) %>%
+  map_dfr(function(x) {
+
+    summarise_training_capacity(
+      x,
+      paste0(
+        "Facility Level: ",
+        unique(x$facility_level)[1]
+      )
+    )
+  })
+
+
+# -------------------------------------------------------
+# 4. Summary by country
+# -------------------------------------------------------
+
+training_by_country <- training_facility %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != ""
+  ) %>%
+  group_split(facility_country) %>%
+  map_dfr(function(x) {
+
+    summarise_training_capacity(
+      x,
+      paste0(
+        "Country: ",
+        unique(x$facility_country)[1]
+      )
+    )
+  })
+
+
+# -------------------------------------------------------
+# 5. Combine sections
+# -------------------------------------------------------
+
+training_table_data <- bind_rows(
+  training_overall,
+  training_by_level,
+  training_by_country
+)
+
+
+# -------------------------------------------------------
+# 6. Create gt table
+# -------------------------------------------------------
+
+gt_training_capacity <- training_table_data %>%
+  gt(
+    rowname_col = "Indicator",
+    groupname_col = "Section"
+  ) %>%
+
+  tab_header(
+    title = md("**Training Capacity at Facilities**"),
+    subtitle = "Overall and stratified by facility level and country"
+  ) %>%
+
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+
+  cols_align(
+    align = "right",
+    columns = c(
+      `Yes N (%)`,
+      `No N (%)`
+    )
+  ) %>%
+
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    row_group.background.color = "#F2F4F6",
+    table.border.top.color = "grey70",
+    table.border.bottom.color = "grey70"
+  ) %>%
+
+  tab_source_note(
+    source_note = md(
+      paste(
+        "Percentages calculated among facilities",
+        "with valid, unambiguous classifications",
+        "for each training indicator.",
+        "Tied and missing responses excluded.",
+        "NR = no valid classified facilities."
+      )
+    )
+  )
+
+# Display table
+gt_training_capacity
+
+```
+
+## Training Capcity by Country
+
+```{r}
+
+
+# ============================================================
+# FIGURE 8.1 — TRAINING CAPACITY BY COUNTRY
+# ============================================================
+
+# -------------------------------------------------------
+# 1. Calculate country percentages
+# -------------------------------------------------------
+
+training_country_summary <- training_facility %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != "",
+    availability %in% c("yes", "no")
+  ) %>%
+
+  group_by(
+    facility_country,
+    training_indicator
+  ) %>%
+
+  summarise(
+    n_yes = sum(availability == "yes"),
+    n_facilities = n_distinct(facility_name),
+
+    percent = 100 * n_yes / n_facilities,
+
+    .groups = "drop"
+  ) %>%
+
+  mutate(
+    training_label = factor(
+      unname(training_labels[training_indicator]),
+      levels = unname(training_labels[training_vars])
+    ),
+
+    pct_label = sprintf("%.1f%%", percent)
+  )
+
+# -------------------------------------------------------
+# 2. Order countries by mean training capacity
+# -------------------------------------------------------
+
+country_order <- training_country_summary %>%
+  group_by(facility_country) %>%
+  summarise(
+    mean_percent = mean(percent),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(mean_percent)) %>%
+  pull(facility_country)
+
+training_country_summary <- training_country_summary %>%
+  mutate(
+    facility_country = factor(
+      facility_country,
+      levels = country_order
+    )
+  )
+
+
+# -------------------------------------------------------
+# 3. Create grouped bar chart
+# -------------------------------------------------------
+
+training_country_bar <- ggplot(
+  training_country_summary,
+  aes(
+    x = facility_country,
+    y = percent,
+    fill = training_label
+  )
+) +
+
+  geom_col(
+    position = position_dodge(width = 0.8),
+    width = 0.7
+  ) +
+
+  geom_text(
+    aes(label = pct_label),
+    position = position_dodge(width = 0.8),
+    vjust = -0.4,
+    size = 2.7
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "Trains PRS Residents/Fellows" = "#BD0026",
+      "Hosts Visiting Outreach Teams" = "#FD8D3C",
+      "CPD Opportunities Available" = "#FEB24C"
+    )
+  ) +
+
+  scale_y_continuous(
+    breaks = seq(0, 100, by = 20),
+    labels = label_number(suffix = "%")
+  ) +
+
+  coord_cartesian(
+    ylim = c(0, 110),
+    clip = "off"
+  ) +
+
+  labs(
+    title = "Training Capacity by Country",
+    subtitle = "Facility-level training opportunities across surveyed countries",
+    x = NULL,
+    y = "Facilities reporting Yes (%)",
+    fill = NULL,
+
+    caption = paste(
+      "Percentages calculated among facilities with valid",
+      "and unambiguous responses for each indicator.",
+      "Facility classifications based on modal surgeon reports."
+    )
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1
+    ),
+
+    axis.ticks = element_blank(),
+
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+
+    legend.position = "top",
+
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+# Display figure
+training_country_bar
+
+
+```
+
+## Training Needs Reported
+
+```{r}
+
+# ============================================================
+# FIGURE 8.2A — TRAINING NEEDS REPORTED (Q37)
+# ============================================================
+
+# Prepare surgeon-level responses
+training_needs_data <- df %>%
+  mutate(
+    respondent_row = row_number(),
+
+    training_needs = str_to_lower(
+      str_squish(as.character(training_needs))
+    ),
+
+    training_needs = na_if(training_needs, "")
+  )
+
+# Count valid Q37 responses
+training_needs_summary <- training_needs_data %>%
+  filter(training_needs %in% c("yes", "no")) %>%
+  count(training_needs, name = "n") %>%
+  complete(
+    training_needs = c("yes", "no"),
+    fill = list(n = 0)
+  ) %>%
+  mutate(
+    percent = 100 * n / sum(n),
+
+    response_label = factor(
+      if_else(training_needs == "yes", "Yes", "No"),
+      levels = c("Yes", "No")
+    ),
+
+    pct_label = sprintf(
+      "%.1f%%\n(n = %s)",
+      percent,
+      n
+    )
+  )
+
+# Total valid Q37 respondents
+n_training_respondents <- sum(training_needs_summary$n)
+
+# Create donut chart
+training_needs_donut <- ggplot(
+  training_needs_summary,
+  aes(
+    x = 2,
+    y = n,
+    fill = response_label
+  )
+) +
+
+  geom_col(
+    width = 1,
+    color = "white"
+  ) +
+
+  coord_polar(theta = "y") +
+
+  xlim(0.5, 2.5) +
+
+  geom_text(
+    aes(label = pct_label),
+    position = position_stack(vjust = 0.5),
+    size = 3.5,
+    color = "white"
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "Yes" = "#BD0026",
+      "No" = "#FEB24C"
+    )
+  ) +
+
+  labs(
+    title = "Additional Training Needs",
+    subtitle = paste0(
+      "Surgeon-reported needs (N = ",
+      n_training_respondents,
+      ")"
+    ),
+    fill = NULL
+  ) +
+
+  theme_void(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 12
+    ),
+    legend.position = "bottom"
+  )
+
+training_needs_donut
+
+```
+
+### Training Needs Text
+
+```{r}
+# Load training theme counts
+
+training_theme_count <- read_rds(here("data/training_theme_count.rds"))
+```
+
+```{r}
+# Create horizontal bar chart
+
+# -------------------------------------------------------
+# Training Needs by Theme
+# -------------------------------------------------------
+
+training_themes_bar <- ggplot(
+  training_theme_count,
+  aes(
+    x = reorder(theme, percentage),
+    y = percentage,
+    fill = percentage
+  )
+) +
+
+  geom_col(width = 0.75) +
+
+  geom_text(
+    aes(label = pct_label),
+    hjust = -0.1,
+    size = 3.1
+  ) +
+
+  scale_fill_distiller(
+    palette = "YlOrRd",
+    direction = 1
+  ) +
+
+  scale_x_discrete(
+    labels = function(x) {
+      stringr::str_wrap(x, width = 25)
+    }
+  ) +
+
+  scale_y_continuous(
+    breaks = scales::breaks_width(10),
+    labels = scales::label_number(suffix = "%"),
+    expand = expansion(mult = c(0, 0.25))
+  ) +
+
+  coord_flip(clip = "off") +
+
+  labs(
+    title = "Training Needs by Theme",
+    subtitle = paste0(
+      "Themes identified from free-text responses (N = ",
+      n_training_respondents,
+      ")"
+    ),
+    x = NULL,
+    y = "% of respondents reporting each theme",
+    caption = paste(
+      "Multiple themes permitted per respondent.",
+      "Percentages may sum to more than 100%."
+    )
+  ) +
+
+  theme_minimal(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 12
+    ),
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+# Display figure
+training_themes_bar
+
+```
+
+### Training Needs Text by Country
+
+```{r}
+# -------------------------------------------------------
+# 1. Match coded training needs to surgeon country
+# -------------------------------------------------------
+
+# Create surgeon-country lookup using actual IDs
+surgeon_country_lookup <- df %>%
+  mutate(
+    id = as.character(id),
+    main_facility_name = str_squish(
+      as.character(main_facility_name)
+    )
+  ) %>%
+  select(id, main_facility_name) %>%
+  left_join(
+    facility_country_lookup %>%
+      select(facility_name, facility_country),
+    by = c("main_facility_name" = "facility_name"),
+    relationship = "many-to-one"
+  ) %>%
+  distinct(id, .keep_all = TRUE)
+
+# Add country to coded training needs
+training_needs_country <- training_needs_coded %>%
+  mutate(id = as.character(id)) %>%
+  left_join(
+    surgeon_country_lookup %>%
+      select(id, facility_country),
+    by = "id",
+    relationship = "many-to-one"
+  )
+
+# Check unmatched countries
+training_needs_country %>%
+  filter(is.na(facility_country)) %>%
+  select(id, training_needs_specify)
+```
+```{r}
+# -------------------------------------------------------
+# 2. Prepare country-specific theme frequencies
+# -------------------------------------------------------
+
+# Count unique surgeons with valid Q38 responses by country
+country_training_respondents <- training_needs_country %>%
+  mutate(
+    facility_country = str_squish(
+      as.character(facility_country)
+    )
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != "",
+    !is.na(training_needs_specify),
+    str_squish(training_needs_specify) != ""
+  ) %>%
+  group_by(facility_country) %>%
+  summarise(
+    total_respondents = n_distinct(id),
+    .groups = "drop"
+  )
+
+# Separate multiple themes into individual rows
+training_themes_country_long <- training_needs_country %>%
+  mutate(
+    facility_country = str_squish(
+      as.character(facility_country)
+    )
+  ) %>%
+  filter(
+    !is.na(facility_country),
+    facility_country != "",
+    !is.na(theme),
+    theme != ""
+  ) %>%
+  separate_rows(
+    theme,
+    sep = ";"
+  ) %>%
+  mutate(theme = str_squish(theme)) %>%
+  filter(theme != "") %>%
+  distinct(id, facility_country, theme)
+
+# Calculate country percentages
+training_theme_country_count <- training_themes_country_long %>%
+  count(
+    facility_country,
+    theme,
+    name = "n"
+  ) %>%
+  left_join(
+    country_training_respondents,
+    by = "facility_country"
+  ) %>%
+  mutate(
+    percentage = 100 * n / total_respondents,
+    pct_label = sprintf(
+      "%.1f%% (n = %s)",
+      percentage,
+      n
+    )
+  )
+
+# View data
+training_theme_country_count
+```
+
+
+```{r}
+
+# -------------------------------------------------------
+# Function: Training needs by country
+# -------------------------------------------------------
+
+plot_country_training_needs <- function(country_name) {
+
+  # Filter data for selected country
+  country_data <- training_theme_country_count %>%
+    filter(facility_country == country_name)
+
+  if (nrow(country_data) == 0) {
+    stop(paste("No training needs data found for", country_name))
+  }
+
+  # Number of surgeons providing valid Q38 responses
+  n_surgeons <- country_data %>%
+    summarise(
+      n = first(total_respondents)
+    ) %>%
+    pull(n)
+
+  # Prepare theme ordering
+  country_data <- country_data %>%
+    mutate(
+      theme_ordered = reorder(theme, percentage)
+    )
+
+  # Create horizontal bar chart
+  ggplot(
+    country_data,
+    aes(
+      x = theme_ordered,
+      y = percentage,
+      fill = percentage
+    )
+  ) +
+
+    geom_col(
+      width = 0.75
+    ) +
+
+    # Percentage labels inside bars
+    geom_text(
+      aes(
+        label = pct_label,
+        hjust = if_else(
+          percentage >= 70,
+          1.1,
+          -0.1
+        ),
+        color = case_when(
+          percentage >= 70 ~ "white",
+          TRUE ~ "black"
+        )
+      ),
+      size = 3.2,
+      show.legend = FALSE
+    ) +
+
+    scale_color_identity() +
+
+    # Fixed color gradient across all countries
+    scale_fill_distiller(
+      palette = "YlOrRd",
+      direction = 1,
+      limits = c(0, 100),
+      breaks = c(0, 25, 50, 75, 100)
+    ) +
+
+    scale_x_discrete(
+      labels = function(x) {
+        str_wrap(x, width = 28)
+      }
+    ) +
+
+    # Percentage axis from 0 to 100%
+    scale_y_continuous(
+      breaks = seq(0, 100, by = 20),
+      labels = label_number(suffix = "%"),
+      expand = expansion(mult = c(0, 0))
+    ) +
+
+    coord_flip(
+      ylim = c(0, 100),
+      clip = "off"
+    ) +
+
+    labs(
+      title = paste(
+        "Training Needs by Theme —",
+        country_name
+      ),
+
+      subtitle = paste0(
+        "Surgeon-reported training needs (N = ",
+        n_surgeons,
+        ")"
+      ),
+
+      x = NULL,
+      y = "% of respondents reporting each theme",
+
+      caption = paste(
+        "Multiple themes permitted per respondent.",
+        "Percentages calculated among surgeons providing",
+        "valid free-text responses within each country."
+      )
+    ) +
+
+    theme_minimal(base_size = 12) +
+
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 13
+      ),
+
+      axis.ticks = element_blank(),
+      axis.title.y = element_blank(),
+
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+
+      legend.position = "none",
+
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+
+      plot.margin = margin(10, 40, 10, 10)
+    )
+}
+
+
+# -------------------------------------------------------
+# Get all countries
+# -------------------------------------------------------
+
+countries <- training_theme_country_count %>%
+  distinct(facility_country) %>%
+  pull(facility_country)
+
+# -------------------------------------------------------
+# Create individual plots for every country
+# -------------------------------------------------------
+
+country_training_needs_plots <- setNames(
+  lapply(countries, plot_country_training_needs),
+  countries
+)
+
+# Display one country
+# print(country_training_needs_plots[["Kenya"]])
+
+# Or run directly
+# plot_country_training_needs("Uganda")
+
+```
+
+```{r}
+# -------------------------------------------------------
+# Save one training needs figure per country
+# -------------------------------------------------------
+
+output_dir <- here(
+  "images",
+  "country_training_needs"
+)
+
+dir.create(
+  output_dir,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+for (country in countries) {
+
+  filename <- file.path(
+    output_dir,
+    paste0(
+      gsub("[^A-Za-z0-9]+", "_", country),
+      "_training_needs.png"
+    )
+  )
+
+  ggsave(
+    filename = filename,
+    plot = country_training_needs_plots[[country]],
+    width = 12,
+    height = 8,
+    dpi = 300,
+    bg = "white"
+  )
+}
 ```
 
