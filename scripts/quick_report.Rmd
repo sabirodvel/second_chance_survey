@@ -24,8 +24,9 @@ editor_options:
 knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
 
-```{r initial_setup}
+```{r initial_setup, include=F}
 if(!require("pacman")) install.packages("pacman")
+
 pacman::p_load(here,
                tidyverse, 
                janitor, 
@@ -46,7 +47,6 @@ pacman::p_load(here,
                RColorBrewer,
                tidytext
                )
-
 ```
 
 ```{r visualization_style, include=FALSE}
