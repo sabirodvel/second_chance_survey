@@ -222,10 +222,28 @@ training_theme_count <- training_themes_long %>%
 # Display summary
 training_theme_count
 
+# -------------------------------------------------------
+# 5. Add country
+# -------------------------------------------------------
+
+# Add country to coded training needs
+training_needs_country <- training_needs_coded %>%
+  mutate(id = as.character(id)) %>%
+  left_join(
+    surgeon_country_lookup %>%
+      select(id, facility_country),
+    by = "id",
+    relationship = "many-to-one"
+  )
+
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save clean dataset ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save as RDS (preserves factors, levels, and variable types)
 saveRDS(
   training_theme_count, here("data/training_theme_count.rds")
+)
+
+saveRDS(
+  training_needs_country, here("data/training_needs_country.rds")
 )
