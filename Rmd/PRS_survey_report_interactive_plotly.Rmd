@@ -1,0 +1,3375 @@
+---
+title: "2nd Chance Survey: Final Report"
+author: "Sabina Rodriguez"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    theme: simplex
+    toc: true
+    toc_float:
+      collapsed: true
+editor_options:
+  chunk_output_type: inline
+  markdown:
+    wrap: none
+---
+
+```{r global_chunk-options, echo=FALSE}
+# PURPOSE: Set global knitr defaults to suppress code, package messages, and warnings in the report output.
+knitr::opts_chunk$set(echo = F, message = F, warning = F,
+                      fig.width = 8, fig.height = 5, out.width = "80%")
+```
+
+```{r initial_setup, include=F}
+# PURPOSE: Install the package loader if needed and load the packages used throughout the analysis.
+if(!require("pacman")) install.packages("pacman")
+
+pacman::p_load(here,
+               tidyverse, 
+               janitor, 
+               lubridate, 
+               stringr, 
+               gt, 
+               readxl, 
+               purrr, 
+               writexl, 
+               digest,
+               sf,
+               countrycode,
+               rnaturalearth,
+               rnaturalearthdata,
+               patchwork,
+               scales,
+               forcats,
+               RColorBrewer,
+               tidytext,
+               plotly,
+               htmlwidgets
+               )
+```
+
+```{r visualization_style, include=FALSE}
+# PURPOSE: Centralize plot palettes and create a reusable theme to keep charts visually consistent.
+# ---- Visualization style ------------------------------------------------------
+# Use one sequential palette for quantities and heatmaps, and a consistent
+# qualitative palette for distinct groups. Update colors here, not per plot.
+viz_sequential <- "YlOrRd"
+# Define `viz_heat_colors` as the reference values, categories, or labels used in this section.
+viz_heat_colors <- c("white", RColorBrewer::brewer.pal(9, viz_sequential))
+# Define `viz_colors` as the reference values, categories, or labels used in this section.
+viz_colors <- c(
+  orange_light = "#FEB24C", orange = "#FD8D3C", red = "#BD0026",
+  red_light = "#F03B20", dark_red = "#C0392B", green = "#2E8B57",
+  grey = "#737373"
+)
+
+# Shared color palette for geographic visualizations.
+viz_geo_colors <- colorRampPalette(viz_heat_colors)(100)[30:100]
+
+# Common typography/background. Individual figures may override axis choices.
+theme_policy <- function(base_size = 12, ...) {
+  ggplot2::theme_minimal(base_size = base_size, ...) +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(face = "bold"),
+      plot.title.position = "plot",
+      legend.title = ggplot2::element_text(face = "bold")
+    )
+}
+```
+
+```{r plotly_helpers, include=FALSE}
+# Convert ggplot2 graphics to interactive HTML widgets with hover and toolbar.
+# The original ggplot objects remain available for saving static figures.
+as_interactive <- function(p, height = NULL) {
+  widget <- plotly::ggplotly(p, tooltip = "all", dynamicTicks = FALSE)
+  widget <- plotly::config(widget,
+    displaylogo = FALSE,
+    responsive = TRUE,
+    modeBarButtonsToRemove = c("sendDataToCloud", "lasso2d"))
+  if (!is.null(height)) widget <- plotly::layout(widget, height = height)
+  widget
+}
+```
+
+```{r dataset_load, include = F}
+# PURPOSE: Load cleaned respondent-level data and the merged facility dataset from local RDS files.
+# Load data (consent and ssa)
+df <- read_rds(here("data/clean_data_20261112.rds"))
+
+# Read a previously saved R data object from disk.
+facility_df <- read_rds(here("data/clean_merged_20261112.rds"))
+```
+
+# Report Purpose
+
+This report presents preliminary descriptive findings from the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of plastic and reconstructive surgeons currently practicing in Sub-Saharan Africa (SSA). The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning in the region.
+
+Findings reflect the participating respondents and the facilities they reported and should not be interpreted as representative of the entire plastic and reconstructive surgery workforce in SSA.
+
+# Introduction
+
+## Background
+
+Access to plastic and reconstructive surgery (PRS) remains limited across Sub-Saharan Africa (SSA), despite a substantial burden of trauma, burns, and congenital malformations. Limited specialist availability, uneven workforce distribution, and resource constraints further restrict access to essential reconstructive services. Although surgical workforce assessments have been conducted across the region, comprehensive data on the distribution, practice characteristics, and facility capacity of PRS specialists remain scarce. This information is essential to identify service gaps and inform workforce development and surgical system strengthening.
+
+## Objective
+
+This study aimed to assess the geographic distribution, workforce density, and service delivery capacity of accredited plastic and reconstructive surgeons across SSA. Specifically, it sought to characterize surgeons' practice settings, surgical workload, and the availability of infrastructure, equipment, supplies, and training resources at participating facilities. Methodology
+
+A cross-sectional, multi-country survey was designed to assess PRS workforce and facility capacity across SSA, particularly in countries affiliated with the College of Surgeons of East, Central and Southern Africa (COSECSA) and the West African College of Surgeons (WACS).
+
+A purposive census sampling approach, supplemented by snowball sampling, was used to identify eligible accredited plastic and reconstructive surgeons through professional associations, training institutions, hospitals, and professional networks. Data were collected electronically using a structured questionnaire administered through KoboToolbox. The survey assessed demographic and professional characteristics, geographic distribution, practice settings, surgical workload, facility resources, and training capacity.
+
+Survey responses were de-identified and prepared for analysis using R. Descriptive statistics were used to summarize workforce characteristics and facility capacity. Geographic mapping was used to assess workforce distribution, and surgeon density was calculated per 100,000 population using publicly available population estimates.
+
+## Ethical Considerations
+
+Ethical approval was obtained from the BASEC and CUREG ethics review bodies in Switzerland and the College of Surgeons of East, Central and Southern Africa (COSECSA) Institutional Review Board (IRB) prior to study commencement. Participation was voluntary, and electronic informed consent was obtained before survey completion. The study collected no patient-level information. All survey responses were de-identified and securely stored, with access restricted to authorized research personnel. Findings were reported in aggregate to protect participant and institutional confidentiality.
+
+# Response Rate and Data Completeness
+
+Potential participants were identified through three complementary sources. The COSECSA Entire Surgeon Membership List (n = 1,655) and the COSECSA Plastic Reconstructive Surgeon Fellow List (n = 129) constituted the COSECSA stream. The 2nd Chance Professional Network (n = 57) and 2nd Chance COSECSA Conference Attendance list (n = 40) were merged into a combined list of 97 individuals. Online searches of published literature and other sources identified a further 35 individuals. After deduplication — 33 duplicates from the 2nd Chance stream and 3 from online sources (36 total removed) — these streams yielded 225 unique potential participants (THIS NUMBER IS YET TO BE CONFIRMED WITH COSECSA).
+
+Of the 51 individuals who accessed the survey, 9 were excluded: 1 declined informed consent and 8 were not currently practicing in SSA, leaving 42 eligible participants (82.4% of those who accessed the survey). The response rate relative to the deduplicated pool was 18.7% (42/225).
+
+![Figure 1. Participant identification and inclusion flowdiagram. Numbers highlighted in red are to be confirmed with COSECSA](../images/2nd_chance_survey_diagram.png)
+
+
+During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, implying 76 years since accreditation — inconsistent with the reported age and not reliably correctable. Both the accreditation year and the derived years-in-practice variable were treated as missing for this individual, who was retained in all other analyses for which valid data were available.
+
+Analyses involving accreditation year therefore have a denominator of N = 41.
+
+# Respondent Characteristics
+
+## Age and Gender
+
+The demographic composition of survey respondents was examined according to age group and gender. Together, these characteristics provide an overview of the age and gender representation within the participating surgical workforce.
+
+### Participant Characteristics
+
+Table 1 summarizes respondents' demographic characteristics and countries of practice. Age, gender, and geographic distributions are reported as frequencies and percentages, with denominators based on available responses for each characteristic.
+
+```{r participant_profile_summary, echo=F}
+# PURPOSE: Define reusable functions for respondent frequency/percentage summaries and the formatted demographic profile table.
+# Section one (header)
+.build_section <- function(df, var, section_label, digits = 1,
+                           include_na_row = FALSE, na_label = "Not reported/applicable",
+                           unit = "respondents") {
+  # Calculate or assign `v` for use in the subsequent analysis or visualization.
+  v <- df[[var]]
+
+  # normalize to character; treat blanks as NA
+  v_chr <- if (is.factor(v)) as.character(v) else as.character(v)
+  # Calculate or assign `v_chr` for use in the subsequent analysis or visualization.
+  v_chr <- ifelse(str_trim(v_chr) == "", NA_character_, v_chr)
+
+  # denominator: non-missing values in this section
+  denom <- sum(!is.na(v_chr))
+
+  # counts for non-missing
+  items <- tibble(value = v_chr)  %>% 
+    # Keep only observations that satisfy the stated conditions.
+    filter(!is.na(value)) %>%
+    # Count observations by the indicated categories or identifiers.
+    count(value, name = "n") %>%
+    # Sort the resulting observations in the specified order.
+    arrange(desc(n), value) %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      pct = n / denom,
+      display = sprintf("%s (%s)", n, percent(pct, accuracy = 10^-digits)),
+      row_type = "item",
+      label = as.character(value)
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(row_type, label, display)
+
+  # optional NA row (excluded from denominator)
+  if (include_na_row && any(is.na(v_chr))) {
+    na_n <- sum(is.na(v_chr))
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        label = na_label,
+        display = sprintf("%s (%s)", na_n, percent(na_n / (denom + na_n), accuracy = 10^-digits))
+      )
+    )
+  }
+
+  # section header row
+  header <- tibble(
+    row_type = "section",
+    label    = sprintf("%s, n (%%)", section_label),
+    display  = sprintf("N = %s %s", comma(denom), unit)
+  )
+
+  bind_rows(header, items)
+}
+
+# ----- Build the whole profile table 
+make_profile_table_gt <- function(
+  df,
+  sections = c(
+    age_group             = "Age Group",
+    gender                = "Gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,      # set TRUE if you want an explicit NA row per section
+  title = "Participant demographics",# table title (left)
+  overall_n_right = TRUE       # show overall N on the far right of the table title
+) {
+  # assemble all sections (stacked)
+  body <- map2_dfr(names(sections), unname(sections), ~
+    .build_section(df, var = .x, section_label = .y, digits = digits, include_na_row = include_na_row)
+  )
+
+  # little helper for visual indent
+  body <- body %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      Label = ifelse(row_type == "item", paste0("  ", label), label),
+      `n (%)` = display
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(Label, `n (%)`, row_type)
+
+  # overall N (optional, in the title area)
+  overall_tag <- if (overall_n_right) paste0("N = ", scales::comma(nrow(df)), " respondents") else NULL
+
+  # Calculate or assign `gt_tbl` for use in the subsequent analysis or visualization.
+  gt_tbl <- body %>%
+    # Convert the prepared data into a formatted gt table.
+    gt() %>%
+    # Hide helper columns that should not appear in the final table.
+    cols_hide(columns = row_type) %>%
+    # Set the displayed table title and subtitle.
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+    # style section header rows
+    tab_style(
+      style = list(cell_text(weight = "bold")),
+      locations = cells_body(rows = row_type == "section", columns = "Label")
+    ) %>%
+    tab_style(
+      style = list(cell_text(weight = "bold"), cell_text(align = "right")),
+      locations = cells_body(rows = row_type == "section", columns = "n (%)")
+    ) %>%
+    # add subtle indentation to item rows
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(rows = row_type == "item", columns = "Label")
+    ) %>%
+    # thin row separators between sections
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+    # draw a light rule above each new section
+    tab_style(
+      style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+    # Rename displayed table columns without changing the underlying data.
+    cols_label(Label = md(""), `n (%)` = md(""))
+
+  gt_tbl
+}
+
+# Make table using gt 
+gt_participant_table <- make_profile_table_gt(
+  df,
+  sections = c(
+    # add more or reorder as you like:
+    age_group             = "Surgeons (age groups)",
+    gender                = "Surgeons by gender",
+    country_practice      = "Country of Practice"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Participant Characteristics",
+  overall_n_right = TRUE
+)
+
+gt_participant_table
+
+# # Save Table
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+### Age and Gender Distribution
+
+The combined age and gender distribution is presented in Figure 3. This analysis examines how age groups are represented among male and female respondents, providing additional insight into the demographic composition of participating surgeons.
+
+```{r demo_pyramid, echo=F}
+# PURPOSE: Prepare and plot the age-by-gender demographic profile.
+# Calculate counts and percentages by age group and gender
+pyramid_data <- df %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(age_group),
+    !is.na(gender),
+    gender %in% c("Male", "Female")
+  ) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(age_group, gender, name = "n") %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    percentage = 100 * n / sum(n),
+    # Choose values from the true or false branch of this condition.
+    plot_n = if_else(
+      gender == "Male",
+      -n,
+      n
+    ),
+    pct_label = sprintf("%.1f%%", percentage)
+  )
+
+# Create demographic pyramid
+demographic_pyramid <- pyramid_data %>%
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(aes(
+    x = age_group,
+    y = plot_n,
+    fill = gender
+  )) +
+  # Draw bars whose heights represent the computed values.
+  geom_col(width = 0.85) +
+  # Add labels to the plotted data marks.
+  geom_text(
+    aes(
+      label = pct_label,
+      # Choose values from the true or false branch of this condition.
+      hjust = if_else(plot_n < 0, 1.1, -0.1)
+    ),
+    size = 5,
+    show.legend = FALSE
+  ) +
+  # Exchange the plot axes to improve category-label readability.
+  coord_flip() +
+  scale_y_continuous(
+    labels = function(x) abs(x),
+    expand = expansion(mult = 0.15)
+  ) +
+  # Apply the manually specified colors to fill categories.
+  scale_fill_manual(
+    values = c(
+      "Male" = viz_colors[["red"]],
+      "Female" = viz_colors[["orange"]]
+    )
+  ) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Age and Gender Distribution of Surgeons",
+    x = "Age Group",
+    y = "Number of Surgeons",
+    fill = "Gender"
+  ) +
+  theme_policy(base_size = 20) +
+  theme(
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+as_interactive(demographic_pyramid)
+# Save the graph
+# ggsave(filename = here("images/demographic_pyramid.png"), plot = demographic_pyramid, height = 10, width = 13, bg = "white")
+```
+
+## Country of Practice
+
+The table below summarizes the geographic distribution of reported countries of practice among respondents, including the frequency and percentage of each country. As respondents could practice in multiple countries, percentages are based on the total number of country mentions.
+
+```{r prep_country_practice, include=F}
+# PURPOSE: Aggregate countries of practice into totals and prepare country labels for plotting.
+# View the countries
+# unique(df$country_currently)
+# unique(df$country_practice)
+
+# Extract unique countries from each column
+clean_country_practice <- df %>% 
+  separate_rows(country_currently, sep = ";") %>% 
+  # Create or recode variables using the expressions below.
+  mutate(country_currently = str_trim(country_currently))
+
+# Count respondents by country
+country_counts <- clean_country_practice %>% 
+  # Create or recode variables using the expressions below.
+  mutate(
+    # Assign values according to the listed conditions, in order.
+    iso_a3 = case_when(
+      country_currently == "cote_divoire" ~ "CIV",
+      country_currently == "democratic_republic_of_the_congo" ~ "COD",
+      TRUE ~ countrycode(
+        str_replace_all(country_currently, "_", " "),
+        origin = "country.name",
+        destination = "iso3c"
+      )
+    )
+  ) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(iso_a3)) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(country_currently, iso_a3, name = "country_count") %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(country_count))
+
+# Retrieve African country boundaries
+africa <- ne_countries(
+  continent = "Africa",
+  scale = "medium",
+  returnclass = "sf"
+)
+
+# Join survey counts to map
+africa_data <- africa %>%
+  # Merge matching reference data while keeping all rows in the current dataset.
+  left_join(
+    country_counts,
+    by = c("adm0_a3" = "iso_a3")
+  )
+
+```
+
+```{r coutry_plot, include=F}
+# PURPOSE: Build the country-of-practice distribution chart.
+# Country entries may include multiple selections per surgeon; the denominator
+# here is the number of country mentions, not necessarily unique surgeons.
+total_n <- sum(country_counts$country_count, na.rm = TRUE)
+
+# Create the count table 
+bar_df_top5 <- country_counts %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(country_count), iso_a3) %>%
+  slice_head(n = 5) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    percentage  = 100 * country_count / total_n,
+    pct_label   = sprintf("%.1f%%", percentage),
+    # choose label color based on how dark the bar will be
+    label_color = if_else(percentage >= 12, "white", "black")  # tweak threshold if needed
+  )
+
+# Calculate or assign `barplot_choro` for use in the subsequent analysis or visualization.
+barplot_choro <- bar_df_top5 %>%
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(aes(
+    x = reorder(country_currently, percentage),
+    y = percentage, fill = percentage)) +
+  # Draw bars whose heights represent the computed values.
+  geom_col(width = 0.8) +
+  # place text just inside the right edge; color varies by bar brightness
+  geom_text(aes(label = pct_label, color = label_color),
+            hjust = 0.98, vjust = 0.5, size = 3, fontface = "bold") +
+  # Map numeric fill values onto the selected continuous color palette.
+  scale_fill_gradientn(
+  colors = viz_geo_colors,
+  name = NULL) +
+  scale_color_identity() +  # use the colors already in the data
+  # Customize the discrete horizontal-axis categories and labels.
+  scale_x_discrete(
+  labels = stringr::str_to_title) +
+  # Exchange the plot axes to improve category-label readability.
+  coord_flip(clip = "off") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.02))) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(title = "Top five countries") +
+  theme_policy() +
+  theme(
+    plot.title = element_text(size = 9, face = "bold"),
+    axis.text.y = element_text(size = 7),
+    axis.text.x = element_text(size = 7),
+    axis.ticks  = element_blank(),
+    axis.title  = element_blank(),
+    legend.position = "none",
+    panel.grid  = element_blank(),
+    plot.title.position = "plot",                 # <-- anchor to plot left edge
+  )
+```
+
+```{r choropleth, include=F}
+# PURPOSE: Prepare country boundary data and map respondent distribution geographically.
+# Plot Africa choropleth
+africa_map <- ggplot() +
+  # All African countries: white by default
+  geom_sf(
+    data = africa,
+    fill = "white",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Countries with survey data only
+  geom_sf(
+    data = africa_data %>% filter(!is.na(country_count)),
+    aes(fill = country_count),
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Northern Africa: excluded from the study
+  geom_sf(
+    data = africa %>% filter(subregion == "Northern Africa"),
+    fill = "grey85",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  # Map numeric fill values onto the selected continuous color palette.
+  scale_fill_gradientn(
+  colors = viz_geo_colors,
+  na.value = "grey85",
+  name = "Surgeon Count",
+  breaks = scales::breaks_pretty(n = 5),
+  labels = scales::label_number(accuracy = 1),
+  guide = guide_colorbar(
+  direction = "horizontal",
+  title.position = "top",
+  barwidth = unit(3, "cm"),
+  barheight = unit(0.25, "cm")
+)
+  ) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Geographic Distribution of Plastic Surgeons",
+    subtitle = "Countries outside SSA are shown in gray"
+  ) +
+  theme_policy() +
+  theme(
+    legend.title = element_text(size = 9),
+  legend.text = element_text(size = 7),
+    legend.position = "top",
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+```{r combine_barpleth, include=F}
+# PURPOSE: Combine the country bar chart and geographic map into a single figure.
+# Combine both barplot with choropleth
+combined_choro_bar <-
+  africa_map +
+  inset_element(barplot_choro,
+                left = -0.08,
+                bottom = 0.10,
+                right = 0.405,
+                top = 0.52)
+
+# ggsave(filename = here("images/combined_map_bar.png"),
+#        plot = combined_choro_bar,
+#        height = 10,
+#        width = 13,
+#        units = "in")
+
+# ggsave(
+#   filename = here::here("images/combined_choro_bar.eps"),
+#   plot = combined_choro_bar,
+#   height = 10,
+#   width = 13,
+#   units = "in",
+#   dpi = 300,
+#   bg = "white",
+#   device = "eps"
+# )
+```
+
+```{r geographic_distribution, fig.width=13, fig.height=6, out.width="100%", echo=F}
+# Interactive geographic display; country counts are country mentions, not unique surgeons.
+# Native Plotly geo handles the map without converting patchwork/geom_sf.
+geo_data <- africa_data %>%
+  sf::st_drop_geometry() %>%
+  dplyr::filter(!is.na(country_count)) %>%
+  dplyr::transmute(
+    iso_a3 = adm0_a3,
+    country = stringr::str_to_title(stringr::str_replace_all(country_currently, "_", " ")),
+    count = country_count,
+    hover = paste0(country, ": ", count, " practice-location mentions")
+  )
+
+interactive_africa <- plotly::plot_geo(geo_data, locationmode = "ISO-3") %>%
+  plotly::add_trace(
+    type = "choropleth", locations = ~iso_a3, z = ~count,
+    text = ~hover, hovertemplate = "%{text}<extra></extra>",
+    colorscale = list(c(0, viz_geo_colors[1]),
+                      c(1, viz_geo_colors[length(viz_geo_colors)])),
+    colorbar = list(title = "Mentions", len = 0.6),
+    marker = list(line = list(color = "#777777", width = 0.35)),
+    showscale = TRUE
+  ) %>%
+  plotly::layout(
+    geo = list(scope = "africa", showframe = FALSE, showcoastlines = FALSE,
+               showcountries = TRUE, countrycolor = "#999999",
+               showland = TRUE, landcolor = "#F2F2F2", projection = list(type = "mercator"))
+  )
+
+interactive_top5 <- as_interactive(barplot_choro) %>%
+  plotly::layout(showlegend = FALSE)
+
+plotly::subplot(interactive_africa, interactive_top5,
+                nrows = 1, widths = c(0.66, 0.34), margin = 0.04) %>%
+  plotly::layout(title = list(text = "Geographic Distribution of Plastic Surgeons"),
+                 margin = list(t = 75, b = 40, l = 30, r = 30)) %>%
+  plotly::config(displaylogo = FALSE, responsive = TRUE)
+```
+
+Respondents reported practicing plastic surgery across multiple countries in sub-Saharan Africa (SSA). Ethiopia accounted for the largest proportion of reported countries of practice, with 13 mentions (30.2%), followed by Rwanda with 9 (20.9%), Uganda with 5 (11.6%), and Kenya with 4 (9.3%). Malawi contributed 2 mentions (4.7%). Together, these five countries accounted for 33 of the 43 reported country mentions (76.7%).
+
+The geographic distribution of reported practice locations was concentrated in East Africa, with Ethiopia and Rwanda alone accounting for 51.2% of all country mentions. Because respondents could report practicing in more than one country, these percentages represent the distribution of reported practice locations rather than the proportion of unique respondents. This concentration may reflect the geographic reach of survey recruitment networks, particularly COSECSA, and should not be interpreted as representative of the overall distribution of plastic surgeons or surgical capacity across SSA.
+
+# Professional Training
+
+Professional training characteristics were examined to describe the educational qualifications, accreditation pathways, years since specialty accreditation, and current professional positions of participating surgeons.
+
+## Years Since Specialty Accreditation
+
+```{r yrs_practice, echo=F}
+# PURPOSE: Clean years-since-accreditation values and prepare the professional experience summary.
+# Prep data
+practice_df <- df %>% 
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(year_prs_accredited),
+    year_prs_accredited >= 0,
+    year_prs_accredited < 50
+  )
+
+# Calculate median
+median_practice <- median(practice_df$year_prs_accredited)
+
+# Create histogram of years in practice
+yrs_practice <- practice_df %>% 
+  
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(aes(
+    x = year_prs_accredited,
+    fill = after_stat(count)
+    )) +
+    
+  # Histogram
+  geom_histogram(
+    aes(fill = after_stat(count)),
+    binwidth = 1,
+    boundary = 0,
+    color = "white",
+    alpha = 0.85
+  ) +
+    
+  # Kernel density curve
+  geom_density(
+    aes(y = after_stat(density * n * 1)),
+    color = "grey",
+    linewidth = 0.75,
+    adjust = 1,
+    fill = NA
+  )  +
+  
+  # Median years
+  geom_vline(
+  xintercept = median(
+   df$year_prs_accredited,
+    na.rm = TRUE
+  ),
+  linetype = "dashed",
+  color = viz_colors[["dark_red"]],
+  linewidth = 0.8
+ ) +
+    
+  # Frequency labels above bars
+  geom_text(
+  stat = "bin",
+  binwidth = 1,
+  boundary = 0,
+  aes(label = ifelse(
+    after_stat(count) > 0,
+    paste0("n = ", after_stat(count)),
+    "")),
+  vjust = -1,
+  size = 2.5
+  ) +
+  scale_fill_distiller(
+    palette = viz_sequential,
+    direction = 1
+  ) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Distribution of Years Since Specialty Accreditation",
+    x = "Years Since Specialty Accreditation",
+    y = "Number of Surgeons",
+    caption = paste0(
+      "Grey solid curve: kernel density estimate (scaled to frequency). ",
+      "Red dashed line: median (",
+      round(median_practice, 1),
+      " years)."
+    )
+  ) +
+  scale_x_continuous(breaks = seq(0,25, by = 5)) +
+  scale_y_continuous(breaks = seq(0,20, by = 5)) +
+  theme_policy() +
+  theme(
+    axis.title = element_blank(),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "grey85", linewidth = 0.4)
+  )
+
+as_interactive(yrs_practice)
+# Save graph
+# ggsave(filename = here("images/histo_yrs_practice.png"), plot = yrs_practice,
+#                        height = 10, width = 13, bg = "white")
+```
+
+The vast majority of respondents — 30 of 41 with valid accreditation data (73.2%) — received specialty accreditation in 2020 or later, confirming the early-career profile of the sample. A further 5 respondents (12.2%) were accredited between 2010 and 2019, and 6 (14.6%) between 2000 and 2009. No respondents reported accreditation before 2000 (the one anomalous 1950 value was excluded as described in the data completeness section).
+
+## Professional Training Background
+
+Table 2 summarizes professional qualifications, accreditation bodies, and periods of specialty accreditation among respondents. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
+
+```{r professional_table, echo=F}
+# PURPOSE: Compile professional training and experience measures into a presentation table.
+# Group specialty accreditation years
+training_df <- df %>% 
+  # Create or recode variables using the expressions below.
+  mutate(
+    # Assign values according to the listed conditions, in order.
+    accreditation_year_group = case_when(
+      as.numeric(as.character(accreditation_year)) < 2000 ~ "Pre-2000",
+      between(as.numeric(as.character(accreditation_year)), 2000, 2009) ~ "2000-2009",
+      between(as.numeric(as.character(accreditation_year)), 2010, 2019) ~ "2010-2019",
+      as.numeric(as.character(accreditation_year)) >= 2020 ~ "2020+",
+      TRUE ~ NA_character_
+    ),
+    accreditation_year_group = factor(
+      accreditation_year_group,
+      levels = c(
+        "Pre-2000",
+        "2000-2009",
+        "2010-2019",
+        "2020+"
+      )
+    )
+  )
+
+# Build individual sections
+.build_training_section <- function(
+  df,
+  var,
+  section_label,
+  digits = 1,
+  include_na_row = FALSE
+) {
+
+  # Calculate or assign `v` for use in the subsequent analysis or visualization.
+  v <- as.character(df[[var]])
+  # Calculate or assign `v` for use in the subsequent analysis or visualization.
+  v <- na_if(str_trim(v), "")
+
+  # Calculate or assign `denom` for use in the subsequent analysis or visualization.
+  denom <- sum(!is.na(v))
+
+  # Define `items` as the reference values, categories, or labels used in this section.
+  items <- tibble(value = v) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(value)) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(value, name = "N") %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    Percent = round(100 * N / denom, digits),
+    row_type = "item",
+    Label = value
+  ) %>%
+  # Keep and order the specified columns for the next processing step.
+  select(row_type, Label, N, Percent)
+
+  # Sort accreditation years chronologically
+  if (var == "accreditation_year_group") {
+    items <- items %>%
+      # Sort the resulting observations in the specified order.
+      arrange(match(
+        Label,
+        c("Pre-2000", "2000-2009", "2010-2019", "2020+")
+      ))
+  } else {
+    items <- items %>%
+      # Sort the resulting observations in the specified order.
+      arrange(desc(N), Label)
+  }
+
+  # Optional missing-value row
+  if (include_na_row && any(is.na(v))) {
+    na_n <- sum(is.na(v))
+
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        Label = "Not reported/applicable",
+        N = na_n,
+        Percent = round(100 * na_n / length(v), digits)
+      )
+    )
+  }
+
+  # Define `header` as the reference values, categories, or labels used in this section.
+  header <- tibble(
+    row_type = "section",
+    Label = section_label,
+    N = denom,
+    Percent = NA_real_
+  )
+
+  bind_rows(header, items)
+}
+
+
+# Build complete professional training table
+make_training_table_gt <- function(
+  df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+) {
+
+  # Calculate or assign `body` for use in the subsequent analysis or visualization.
+  body <- map2_dfr(
+    names(sections),
+    unname(sections),
+    ~ .build_training_section(
+      df,
+      var = .x,
+      section_label = .y,
+      digits = digits,
+      include_na_row = include_na_row
+    )
+  )
+
+  # Calculate or assign `gt_tbl` for use in the subsequent analysis or visualization.
+  gt_tbl <- body %>%
+    # Convert the prepared data into a formatted gt table.
+    gt() %>%
+    # Hide helper columns that should not appear in the final table.
+    cols_hide(columns = row_type) %>%
+    # Set the displayed table title and subtitle.
+    tab_header(
+      title = md(paste0("**", title, "**")),
+      subtitle = paste0(
+        "Total sample: N = ",
+        scales::comma(nrow(df))
+      )
+    ) %>%
+    # Rename displayed table columns without changing the underlying data.
+    cols_label(
+      Label = "Characteristic",
+      N = "N",
+      Percent = "%"
+    ) %>%
+    # Format numeric table cells to the required precision.
+    fmt_number(
+      columns = Percent,
+      decimals = digits
+    ) %>%
+    sub_missing(
+      columns = Percent,
+      missing_text = ""
+    ) %>%
+    # Format numeric table cells to the required precision.
+    fmt_number(
+      columns = N,
+      decimals = 0,
+      use_seps = TRUE
+    ) %>%
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(
+        rows = row_type == "item",
+        columns = Label
+      )
+    ) %>%
+    tab_style(
+      style = cell_borders(
+        sides = "top",
+        color = "grey85",
+        weight = px(1)
+      ),
+      locations = cells_body(
+        rows = row_type == "section"
+      )
+    ) %>%
+    cols_align(
+      align = "right",
+      columns = c(N, Percent)
+    ) %>%
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    )
+
+  gt_tbl
+}
+
+# Make table
+gt_training_table <- make_training_table_gt(
+  training_df,
+  sections = c(
+    qualification = "Highest Qualification",
+    accreditation_body = "Primary Accreditation Body",
+    accreditation_year_group = "Year of Specialty Accreditation"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Professional Training Background"
+)
+
+gt_training_table
+
+# Save Table
+# gtsave(gt_training_table, here("images/gt_training.png"))
+
+```
+
+## Current Professional Position
+
+Consultant/Attending surgeons were the most common position, comprising 16 respondents (38.1%). Residents and trainees accounted for 15 respondents (35.7%), making trainees collectively the second largest group. Academic faculty and Fellows each accounted for 4 respondents (9.5% each), and Department heads/chairs for 3 (7.1%). Taken together, the high proportion of trainees and early-career consultants (38.1% + 35.7% = 73.8%) reinforces the predominantly junior profile identified in the age and accreditation data.
+
+```{r position_table, echo=F}
+# PURPOSE: Summarize respondents’ clinical positions and institutional appointments.
+# Calculate frequencies and percentages
+valid_n <- sum(!is.na(df$position))
+
+# Calculate or assign `position_summary` for use in the subsequent analysis or visualization.
+position_summary <- df %>%
+  # Count observations by the indicated categories or identifiers.
+  count(position, name = "N", .drop = FALSE) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    Percent = if (valid_n > 0) {
+      round(100 * N / valid_n, 1)
+    } else {
+      NA_real_
+    },
+    Label = as.character(position)
+  ) %>%
+  # Keep and order the specified columns for the next processing step.
+  select(Label, N, Percent)
+# Create GT table
+gt_position_table <- position_summary %>%
+  # Convert the prepared data into a formatted gt table.
+  gt() %>%
+
+  # Set the displayed table title and subtitle.
+  tab_header(
+    title = md("**Current Professional Position**"),
+    subtitle = paste0(
+      "Total sample: N = ",
+      scales::comma(nrow(df))
+    )
+  ) %>%
+
+  # Rename displayed table columns without changing the underlying data.
+  cols_label(
+    Label = "Professional Position",
+    N = "N",
+    Percent = "%"
+  ) %>%
+
+  # Format numeric table cells to the required precision.
+  fmt_number(
+    columns = N,
+    decimals = 0,
+    use_seps = TRUE
+  ) %>%
+
+  # Format numeric table cells to the required precision.
+  fmt_number(
+    columns = Percent,
+    decimals = 1
+  ) %>%
+
+  sub_missing(
+    columns = Percent,
+    missing_text = ""
+  ) %>%
+
+  cols_align(
+    align = "right",
+    columns = c(N, Percent)
+  ) %>%
+
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    table.border.top.color = "grey70",
+    table.border.top.width = px(1),
+    table.border.bottom.color = "grey70",
+    table.border.bottom.width = px(1)
+  )
+
+# Display table
+gt_position_table
+
+# Save gttable
+# gtsave(gt_position_table, here("images/gt_current_professional_position.png"))
+```
+
+## Subspecialty
+
+Respondents could select multiple subspecialties. Reported subspecialties spanned the breadth of plastic and reconstructive surgery, including burn surgery, hand surgery, craniofacial and cleft surgery, microsurgery, aesthetic surgery, and general reconstructive surgery, among others. Because respondents could identify with more than one area, percentages are not expected to total 100% and are reported by subspecialty in the accompanying figures.
+
+```{r factorize_subspecialty, include=F}
+# PURPOSE: Standardize subspecialty categories and their ordering for summaries.
+# Extract unique subspecialties from each answer
+clean_subspecialty <- df %>% 
+  separate_rows(subspecialty, sep = ";") %>% 
+  # Create or recode variables using the expressions below.
+  mutate(subspecialty = str_trim(subspecialty))
+
+# Factorize subspecialty
+clean_subspecialty <- clean_subspecialty %>% 
+  # Create or recode variables using the expressions below.
+  mutate(
+    # Clean other
+    subspecialty = case_when(
+      subspecialty == "other" & subspecialty_other == 1 ~ 
+        "general_reconstructive",
+      TRUE ~ subspecialty),
+    # Factorize subspecialties
+    subspecialty = factor(
+      subspecialty,
+      levels = c("burns", "craniofacial", "hand", "microsurgery", "trauma",
+                 "aesthetic", "pediatric", "oncoplastic", "general_reconstructive",
+                 "other"),
+      labels = c("Burns", "Craniofacial surgery", "Hand surgery", "Microsurgery",
+                 "Trauma reconstruction", "Aesthetic plastic surgery", 
+                 "Pediatric plastic surgery", "Oncoplastic surgery",
+                 "General reconstructive surgery", "Other"))
+  )
+
+```
+
+```{r subspeciality_barplot, echo=F}
+# PURPOSE: Compute subspecialty frequencies and build their categorical visualization.
+# Horizontal Bar Chart
+subspecialty_bar <- clean_subspecialty %>%
+
+  # Calculate subspecialty frequencies
+  count(subspecialty) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    percent = 100 * n / nrow(df)
+  ) %>%
+
+  # Graph the plot
+  ggplot(aes(
+    x = reorder(subspecialty, n),
+    y = n,
+    fill = n
+  )) +
+
+  # Draw bars whose heights represent the computed values.
+  geom_col() +
+
+  # Add percentage labels inside bars
+  geom_text(
+    aes(label = paste0(round(percent, 1), "%")),
+    hjust = 1.2,
+    size = 3.5,
+    color = "black"
+  ) +
+
+  scale_fill_distiller(
+    palette = viz_sequential,
+    direction = 1
+  ) +
+
+  # Wrap long subspecialty labels
+  scale_x_discrete(
+    labels = \(x) stringr::str_wrap(x, width = 15)
+  ) +
+
+  # Exchange the plot axes to improve category-label readability.
+  coord_flip() +
+
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Distribution of Subspecialty",
+    x = "Subspecialty",
+    y = "Number of Surgeons",
+    caption = paste(
+      "Percentages represent the proportion of respondents",
+      "selecting each subspecialty. Multiple selections permitted."
+    )
+  ) +
+
+  theme_policy() +
+
+  theme(
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(size = 10),
+    axis.text.x = element_text(
+      hjust = 0.5,
+      vjust = 0.7,
+      size = 8
+    ),
+    legend.position = "none",
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = "grey85",linewidth = 0.4),
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+as_interactive(subspecialty_bar)
+```
+
+# Practice Settings
+
+Clinical practice settings were examined to characterize the institutions where respondents reported providing surgical services. The analysis considers facility characteristics, institutional ownership, geographic location, and the number of facilities associated with individual surgeons.
+
+Because individual surgeons may practice at multiple institutions and multiple respondents may report the same facility, facility-level and respondent-level findings are presented separately.
+
+## Facilities Reported by Respondents
+
+Survey respondents identified multiple healthcare facilities where they provided clinical services. The frequency with which each facility was reported is summarized in Table 4.
+
+Respondents collectively identified 52 unique healthcare facilities across 12 countries. The University Teaching Hospital of Kigali (CHUK) was the most frequently reported facility, cited by 8 respondents, followed by ALERT Comprehensive Specialized Hospital in Ethiopia (5 respondents) and Yekatit 12 Hospital Medical College in Ethiopia (4 respondents). Rwanda Military Teaching and Referral Hospital was cited by 3 respondents; AIC Kijabe Hospital (Kenya), AaBET Hospital (Ethiopia), Felege Hiwot Hospital (Ethiopia), Mulago National Referral Hospital (Uganda), and Worabe Comprehensive Specialized Hospital (Ethiopia) were each cited by 2 respondents. The remaining 43 facilities were each cited by a single respondent.
+
+```{r subspecialty_summary_displa, include=F}
+# PURPOSE: Display the prepared subspecialty chart or summary in the report.
+# Create one record per unique facility
+facility_level_df <- facility_df %>%
+  # Remove repeated records for the selected identifying fields.
+  distinct(
+    facility_name,
+    .keep_all = TRUE
+  )
+```
+
+```{r facility_table, echo=F}
+# PURPOSE: Prepare the descriptive summary of facilities and practice settings.
+# Build the facility characteristics table.
+# Reuse .build_section() from the respondent profile table.
+make_facility_gt <- function(
+  df,
+  sections = c(
+    facility_location_type = "Urban vs. Rural",
+    facility_level = "Level of Health Facility",
+    facility_ownership = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Facility Characteristics",
+  overall_n_right = TRUE
+) {
+
+  # Combine all facility characteristic sections into one table.
+  body <- purrr::map2_dfr(
+    names(sections),
+    unname(sections),
+    ~ .build_section(
+      df,
+      var = .x,
+      section_label = .y,
+      digits = digits,
+      include_na_row = include_na_row,
+      unit = "facilities"
+    )
+  )
+
+  # Format item labels with title case and readable category names.
+  # Keep section headings unchanged and indent category rows.
+  body <- body %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      # Choose values from the true or false branch of this condition.
+      Label = if_else(
+        row_type == "item",
+        paste0(
+          "  ",
+          label %>%
+            stringr::str_replace_all("_", " ") %>%
+            stringr::str_to_title() %>%
+            stringr::str_replace_all("\\bNgo\\b", "NGO")
+        ),
+        label
+      ),
+      `n (%)` = display
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(Label, `n (%)`, row_type)
+
+  # Display the overall facility count in the table subtitle.
+  overall_tag <- if (overall_n_right) {
+    paste0("N = ", scales::comma(nrow(df)), " facilities")
+  } else {
+    NULL
+  }
+
+  # Create and style the facility characteristics table.
+  gt_tbl <- body %>%
+    # Convert the prepared data into a formatted gt table.
+    gt() %>%
+    # Hide helper columns that should not appear in the final table.
+    cols_hide(columns = row_type) %>%
+    # Set the displayed table title and subtitle.
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+
+    # Emphasize section heading labels.
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_body(
+        rows = row_type == "section",
+        columns = "Label"
+      )
+    ) %>%
+
+    # Emphasize section sample sizes.
+    tab_style(
+      style = list(
+        cell_text(weight = "bold"),
+        cell_text(align = "right")
+      ),
+      locations = cells_body(
+        rows = row_type == "section",
+        columns = "n (%)"
+      )
+    ) %>%
+
+    # Indent facility category labels.
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(
+        rows = row_type == "item",
+        columns = "Label"
+      )
+    ) %>%
+
+    # Apply consistent table sizing and borders.
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+
+    # Separate each facility section with a subtle line.
+    tab_style(
+      style = cell_borders(
+        sides = "top",
+        color = "grey85",
+        weight = px(1)
+      ),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+
+    # Remove unnecessary column headings.
+    cols_label(
+      Label = md(""),
+      `n (%)` = md("")
+    )
+
+  gt_tbl
+}
+
+# Generate the facility characteristics table.
+gt_facility_table <- make_facility_gt(
+  facility_level_df,
+  sections = c(
+    facility_location_type = "Urban vs. Rural",
+    facility_level = "Level of Health Facility",
+    facility_ownership = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Facility Characteristics",
+  overall_n_right = TRUE
+)
+
+# Display the formatted table.
+gt_facility_table
+
+
+# # Save Table
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+## Facility Characteristics
+
+Reported healthcare facilities differed in geographic setting, institutional level, and ownership structure.
+
+Table 5 summarizes the distribution of unique reported facilities across urban and rural settings, healthcare facility levels, and ownership categories. These characteristics provide context for understanding the institutional environments in which participating surgeons practice.
+
+```{r facility_type_summary_setup, include=F}
+# PURPOSE: Prepare supplementary facility-level indicators for the next table.
+# Create one record per unique facility
+facility_level_df <- facility_df %>%
+  # Remove repeated records for the selected identifying fields.
+  distinct(
+    facility_name,
+    .keep_all = TRUE
+  )
+```
+
+```{r facility_characteristics_table, echo=F}
+# PURPOSE: Construct the formatted facility characteristics table using the prepared indicators.
+# Section one (header)
+.build_section <- function(df, var, section_label, digits = 1,
+                           include_na_row = FALSE, na_label = "Not reported/applicable") {
+  # Calculate or assign `v` for use in the subsequent analysis or visualization.
+  v <- df[[var]]
+
+  # normalize to character; treat blanks as NA
+  v_chr <- if (is.factor(v)) as.character(v) else as.character(v)
+  # Calculate or assign `v_chr` for use in the subsequent analysis or visualization.
+  v_chr <- ifelse(str_trim(v_chr) == "", NA_character_, v_chr)
+
+  # denominator: non-missing values in this section
+  denom <- sum(!is.na(v_chr))
+
+  # counts for non-missing
+  items <- tibble(value = v_chr)  %>% 
+    # Keep only observations that satisfy the stated conditions.
+    filter(!is.na(value)) %>%
+    # Count observations by the indicated categories or identifiers.
+    count(value, name = "n") %>%
+    # Sort the resulting observations in the specified order.
+    arrange(desc(n), value) %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      pct = n / denom,
+      display = sprintf("%s (%s)", n, percent(pct, accuracy = 10^-digits)),
+      row_type = "item",
+      label = as.character(value)
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(row_type, label, display)
+
+  # optional NA row (excluded from denominator)
+  if (include_na_row && any(is.na(v_chr))) {
+    na_n <- sum(is.na(v_chr))
+    items <- bind_rows(
+      items,
+      tibble(
+        row_type = "item",
+        label = na_label,
+        display = sprintf("%s (%s)", na_n, percent(na_n / (denom + na_n), accuracy = 10^-digits))
+      )
+    )
+  }
+
+  # section header row
+  header <- tibble(
+    row_type = "section",
+    label    = sprintf("%s, n (%%)", section_label),
+    display = sprintf("N = %s facilities", comma(denom))
+  )
+
+  bind_rows(header, items)
+}
+
+# ----- Build the whole profile table 
+make_facility_gt <- function(
+  df,
+  sections = c(
+    facility_location_type             = "Urban vs. Rural",
+    facility_level                = "Level of Health Facility",
+    facility_ownership      = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,      # set TRUE if you want an explicit NA row per section
+  title = "Facility Characteristics",# table title (left)
+  overall_n_right = TRUE       # show overall N on the far right of the table title
+) {
+  # assemble all sections (stacked)
+  body <- map2_dfr(names(sections), unname(sections), ~
+    .build_section(df, var = .x, section_label = .y, digits = digits, include_na_row = include_na_row)
+  )
+
+  # little helper for visual indent
+  body <- body %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      Label = ifelse(row_type == "item", paste0("  ", label), label),
+      `n (%)` = display
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(Label, `n (%)`, row_type)
+
+  # overall N (optional, in the title area)
+  overall_tag <- if (overall_n_right) {
+  paste0("N = ", scales::comma(nrow(df)), " facilities")
+} else {
+  NULL
+}
+  # Calculate or assign `gt_tbl` for use in the subsequent analysis or visualization.
+  gt_tbl <- body %>%
+    # Convert the prepared data into a formatted gt table.
+    gt() %>%
+    # Hide helper columns that should not appear in the final table.
+    cols_hide(columns = row_type) %>%
+    # Set the displayed table title and subtitle.
+    tab_header(
+      title = md(title),
+      subtitle = overall_tag
+    ) %>%
+    # style section header rows
+    tab_style(
+      style = list(cell_text(weight = "bold")),
+      locations = cells_body(rows = row_type == "section", columns = "Label")
+    ) %>%
+    tab_style(
+      style = list(cell_text(weight = "bold"), cell_text(align = "right")),
+      locations = cells_body(rows = row_type == "section", columns = "n (%)")
+    ) %>%
+    # add subtle indentation to item rows
+    tab_style(
+      style = cell_text(indent = px(12)),
+      locations = cells_body(rows = row_type == "item", columns = "Label")
+    ) %>%
+    # thin row separators between sections
+    tab_options(
+      table.font.size = px(13),
+      data_row.padding = px(6),
+      table.border.top.color = "grey70",
+      table.border.top.width = px(1),
+      table.border.bottom.color = "grey70",
+      table.border.bottom.width = px(1)
+    ) %>%
+    # draw a light rule above each new section
+    tab_style(
+      style = list(cell_borders(sides = "top", color = "grey85", weight = px(1))),
+      locations = cells_body(rows = row_type == "section")
+    ) %>%
+    # Rename displayed table columns without changing the underlying data.
+    cols_label(Label = md(""), `n (%)` = md(""))
+
+  gt_tbl
+}
+
+# Make table using gt 
+gt_table <- make_facility_gt(
+  facility_level_df,
+  sections = c(
+    facility_location_type = "Urban vs. Rural",
+    facility_level = "Level of Health Facility",
+    facility_ownership = "Facility Ownership Type"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Facility Characteristics",
+  overall_n_right = TRUE
+)
+
+gt_table
+
+# # Save Table
+#gtsave(gt_table, here("images/gt_participants_characteristics.png"))
+```
+
+## Multiple Facilities
+
+Survey respondents reported different patterns of institutional affiliation, including practice at a single facility and practice across multiple facilities.
+
+The proportion of respondents reporting employment or clinical activity at more than one facility is presented in Figure 12.
+
+### Number of Operating Facilities
+
+The distribution of the number of facilities associated with individual respondents is presented in Figure 13.
+
+These results describe the extent to which participating surgeons practice across multiple healthcare institutions and provide additional context for interpreting facility-level reporting within the survey.
+
+```{r facility_practice_summary, echo=F}
+# PURPOSE: Calculate and display additional indicators of reported practice settings.
+# Recode number of facilities
+df_facilities <- df %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    # Choose values from the true or false branch of this condition.
+    num_facilities = if_else(
+      multiple_facilities == "no",
+      1,
+      num_facilities
+    )
+  )
+
+# Create table using your existing function
+gt_num_facilities <- make_profile_table_gt(
+  df_facilities,
+  sections = c(
+    num_facilities = "Number of Servicing Facilities"
+  ),
+  digits = 1,
+  include_na_row = FALSE,
+  title = "Distribution of Number of Facilities",
+  overall_n_right = TRUE
+)
+
+gt_num_facilities
+```
+
+A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses.
+
+# Workforce Profile
+
+A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses. Workforce Profile and Staffing Respondents provided staffing estimates — plastic and reconstructive surgeons (PRS), PRS trainees, operating theatre (OT) nurses, and physiotherapists — for each of their reported facilities. Where multiple respondents reported the same facility, values are presented as median (minimum–maximum) to account for variation in individual estimates; single-respondent facilities report the value directly.
+
+## Staffing Numbers per Facility
+
+Staffing numbers varied substantially across facilities and countries. Among the most heavily staffed facilities: - Saint Paul's Hospital Millennium Medical College (Ethiopia): 10 PRS surgeons, 17 PRS trainees, 20 OT nurses, 3 physiotherapists — the largest reported PRS surgeon count across all facilities. - Kenyatta National Hospital (Kenya): 5 PRS surgeons, 25 PRS trainees, 15 OT nurses, 4 physiotherapists — notable for the high trainee-to-surgeon ratio of 5:1. - King Faisal Hospital (Rwanda): 2 PRS surgeons, 25 PRS trainees, 10 OT nurses, 2 physiotherapists — the highest reported trainee count of any single facility. - ALERT Comprehensive Specialized Hospital (Ethiopia): median 8 PRS surgeons (range 7–9), 13 trainees (10–26), 24 OT nurses (16–30), 6 physiotherapists (5–10), based on 5 respondents. - Yekatit 12 Hospital Medical College (Ethiopia): median 5 PRS surgeons (5–7), 23 trainees (13–30), 12.5 OT nurses (10–15), 4.5 physiotherapists (3–6), based on 4 respondents. - University Teaching Hospital of Kigali — CHUK (Rwanda): median 1 PRS surgeon (1–4), 12.5 trainees (5–25), 3 OT nurses (2–10), 1 physiotherapist (0–2), based on 8 respondents — the most-reported facility, but with a notably low median PRS surgeon count.
+
+Several facilities — including Nkinga Referral Hospital (Tanzania), Kalembelembe Pediatric Hospital (DR Congo), CHR Notsé (Togo), and Kalkaal Hospital (Somalia) — reported zero PRS surgeons, with either trainees only or minimal allied health support, suggesting severely limited specialist capacity. Staffing counts were not independently verified and represent self-reported estimates.
+
+```{r facility_distribution_summary}
+# PURPOSE: Summarize distribution of facilities by the relevant categories.
+# Create function
+format_staffing <- function(x) {
+
+  # Remove missing values
+  x <- x[!is.na(x)]
+
+  # If all values are missing
+  if (length(x) == 0) return("NR")
+
+  # If only one respondent reported a value
+  if (length(x) == 1) {
+    return(as.character(x))
+  }
+
+  # If multiple respondents reported values
+  median_value <- median(x)
+  # Calculate or assign `min_value` for use in the subsequent analysis or visualization.
+  min_value <- min(x)
+  # Calculate or assign `max_value` for use in the subsequent analysis or visualization.
+  max_value <- max(x)
+
+  # If all respondents agree, show only the value
+  if (min_value == max_value) {
+    return(as.character(median_value))
+  }
+
+  # Otherwise, show median (minimum–maximum)
+  paste0(
+    median_value,
+    " (", min_value, "–", max_value, ")"
+  )
+}
+
+# Facility-level staffing summary
+facility_staffing <- facility_df %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country, facility_name) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(
+    n_respondents = n(),
+
+    prs_surgeons = format_staffing(num_prs_surgeons),
+    prs_trainees = format_staffing(num_prs_trainees),
+    ot_nurses = format_staffing(num_ot_nurses),
+    physiotherapists = format_staffing(num_physiotherapists),
+
+    .groups = "drop"
+  ) %>%
+  # Sort the resulting observations in the specified order.
+  arrange(facility_country, facility_name)
+
+# Create table grouped by country
+facility_staffing %>%
+  # Convert the prepared data into a formatted gt table.
+  gt(groupname_col = "facility_country") %>%
+  # Rename displayed table columns without changing the underlying data.
+  cols_label(
+    facility_name = "Facility",
+    n_respondents = "Respondents (n)",
+    prs_surgeons = "PRS surgeons",
+    prs_trainees = "PRS trainees",
+    ot_nurses = "OT nurses",
+    physiotherapists = "Physiotherapists"
+  ) %>%
+  # Set the displayed table title and subtitle.
+  tab_header(
+    title = "Reported Surgical Workforce by Facility and Country",
+    subtitle = "Facility-level workforce estimates"
+  ) %>%
+  cols_align(
+    align = "center",
+    columns = -facility_name
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+  tab_options(
+    table.font.size = px(12),
+    data_row.padding = px(5),
+    row_group.font.weight = "bold",
+    column_labels.font.weight = "bold"
+  ) %>%
+  tab_source_note(
+    source_note = paste(
+      "For facilities with multiple valid reports,",
+      "values represent median (minimum–maximum).",
+      "For facilities with one valid report,",
+      "the reported count is shown directly.",
+      "Staffing counts were not independently verified."
+    )
+  )
+```
+
+# Service Delivery
+
+## Scope of Procedures Performed
+
+```{r heatmap, include=F}
+# PURPOSE: Prepare data inputs and labels for the facility heatmap.
+# Create list of variables
+procedure_vars <- names(df)[84:101]
+
+# Define `response_levels` as the reference values, categories, or labels used in this section.
+response_levels <- c(
+  "routinely",
+  "occasionally",
+  "rarely",
+  "not_performed"
+)
+
+# Custom procedure labels
+procedure_labels <- c(
+  "wound_debridement"     = "Wound Debridement",
+  "skin_lesion_excision"  = "Skin Lesion Excision",
+  "burn_excision"         = "Burn Excision",
+  "burn_reconstruction"   = "Burn Reconstruction",
+  "contracture_release"   = "Contracture Release",
+  "skin_substitute_app"   = "Skin Substitute Application",
+  "stsg"                  = "Split-Thickness Skin Graft",
+  "ftsg"                  = "Full-Thickness Skin Graft",
+  "local_pedicled_flaps"  = "Local/Pedicled Flaps",
+  "microvascular_surgery" = "Microvascular Surgery",
+  "hand_surgery_proc"     = "Hand Surgery Procedures",
+  "tendon_repair"         = "Tendon Repair",
+  "amputation"            = "Amputation",
+  "cleft_lip_repair"      = "Cleft Lip Repair",
+  "cleft_palate_repair"   = "Cleft Palate Repair",
+  "craniofacial_recon"    = "Craniofacial Reconstruction",
+  "breast_reconstruction" = "Breast Reconstruction",
+  "cosmetic_surgery"      = "Cosmetic Surgery"
+)
+
+# Calculate or assign `service_long` for use in the subsequent analysis or visualization.
+service_long <- df %>%
+  # Keep and order the specified columns for the next processing step.
+  select(all_of(procedure_vars)) %>%
+  # Reshape selected columns into a long format for analysis or plotting.
+  pivot_longer(
+    cols = everything(),
+    names_to = "procedure",
+    values_to = "frequency"
+  ) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    frequency = str_squish(as.character(frequency)),
+    # Assign values according to the listed conditions, in order.
+    frequency = case_when(
+      str_to_lower(frequency) == "performed occasionally" ~
+        "Occasionally performed",
+      TRUE ~ frequency
+    ),
+    frequency = factor(
+      frequency,
+      levels = response_levels
+    )
+  )
+
+```
+
+```{r calculate_heatmap, include=F}
+# PURPOSE: Calculate summarized heatmap values from the prepared facility data.
+# Calculate the heatmap percentages
+heatmap_data <- service_long %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(frequency)) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(procedure, frequency, name = "n") %>%
+  # Add missing combinations of categories to make the summaries explicit.
+  complete(
+    procedure,
+    frequency = factor(
+      response_levels,
+      levels = response_levels
+    ),
+    fill = list(n = 0)
+  ) %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(procedure) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    total = sum(n),
+    # Choose values from the true or false branch of this condition.
+    percent = if_else(
+      total > 0,
+      100 * n / total,
+      NA_real_
+    )
+  ) %>%
+  # Remove grouping so later calculations operate on the full data.
+  ungroup()
+
+# Order procedures by % routinely performed
+procedure_order <- heatmap_data %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(frequency == "routinely") %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(percent)) %>%
+  pull(procedure)
+
+# Calculate or assign `heatmap_data` for use in the subsequent analysis or visualization.
+heatmap_data <- heatmap_data %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    procedure = factor(
+      procedure,
+      levels = rev(procedure_order)
+    )
+  )
+
+
+```
+
+```{r create_heatmap, echo=F}
+# PURPOSE: Create and display the facility-related heatmap.
+# Create heatmap
+procedure_heatmap_plot <- ggplot(heatmap_data, aes(x = frequency, y = procedure, fill = percent)) +
+  # Draw rectangular heatmap cells for the mapped values.
+  geom_tile(color = "white", linewidth = 0.7) +
+  # Add labels to the plotted data marks.
+  geom_text(aes(
+    label = sprintf("%.1f%%", percent),
+    # Assign values according to the listed conditions, in order.
+    color = case_when(percent == 0 ~ "grey50", 
+                      percent >= 50 ~ "white", 
+                      TRUE ~ "black")
+  ),
+  size = 3.5,
+  show.legend = FALSE) +
+  scale_color_identity() +
+  # Map numeric fill values onto the selected continuous color palette.
+  scale_fill_gradientn(
+    colours = viz_heat_colors,
+    limits = c(0, 100),
+    breaks = c(0, 25, 50, 75, 100),
+    labels = function(x)
+      paste0(x, "%"),
+    name = "Respondents (%)"
+  ) +
+  # Customize the discrete horizontal-axis categories and labels.
+  scale_x_discrete(labels = c("Routinely", "Occasionally", "Rarely", "Not performed")) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Scope of Procedures Performed",
+    subtitle = "Distribution of surgeon-reported procedural frequency",
+    x = NULL,
+    y = NULL,
+    caption = paste(
+      "Percentages calculated from valid responses",
+      "for each procedure."
+    )
+  ) +
+  
+  # Customize the discrete vertical-axis categories and labels.
+  scale_y_discrete(
+    labels = function(x) {
+      dplyr::coalesce(unname(procedure_labels[x]), x)
+    }
+  ) +
+  theme_policy(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+as_interactive(procedure_heatmap_plot)
+```
+
+## Workload
+
+```{r prepare_workload, include=F}
+# PURPOSE: Clean and organize respondents’ surgical workload responses.
+# Prepare workload categories
+
+# Total surgeons with valid workload responses
+total_respondents <- df %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(workload_categories),
+    str_trim(as.character(workload_categories)) != ""
+  ) %>%
+  nrow()
+
+# Separate multiple selections into individual rows
+workload_df <- df %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    respondent_id = row_number(),
+    workload_categories = as.character(workload_categories)
+  ) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(workload_categories),
+    str_trim(workload_categories) != ""
+  ) %>%
+  separate_rows(
+    workload_categories,
+    sep = ";"
+  ) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    workload_categories = str_trim(workload_categories)
+  ) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    workload_categories != "",
+    !is.na(workload_categories)
+  ) %>%
+  # Count each category once per surgeon
+  distinct(respondent_id, workload_categories)
+
+# Calculate frequencies and percentages
+workload_count <- workload_df %>%
+  # Count observations by the indicated categories or identifiers.
+  count(
+    workload_categories,
+    name = "n"
+  ) %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(n), workload_categories) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    percentage = 100 * n / total_respondents,
+
+    # Highlight the 3 most frequently selected categories
+    rank = row_number(),
+
+    # Choose values from the true or false branch of this condition.
+    highlight = if_else(
+      rank <= 3,
+      "Top 3 Categories",
+      "Other Categories"
+    ),
+
+    # Label with frequency and percentage
+    pct_label = sprintf(
+      "%.1f%% (n = %s)",
+      percentage,
+      n
+    )
+  )
+
+# View the summary
+workload_count
+
+```
+
+```{r histogram_workload, echo=F}
+# PURPOSE: Display the distribution of surgical workload using the prepared observations.
+# Most Common Reconstructive Workload
+
+workload_bar <- workload_count %>%
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(
+    aes(
+      x = reorder(workload_categories, percentage),
+      y = percentage,
+      fill = percentage
+    )
+  ) +
+
+  # Horizontal bars
+  geom_col(
+    width = 0.75
+  ) +
+
+  # Percentage and frequency labels
+  geom_text(
+    aes(label = pct_label),
+    hjust = -0.1,
+    size = 3.5,
+    color = "black"
+  ) +
+
+  # Continuous color gradient based on percentage
+  scale_fill_distiller(
+    palette = viz_sequential,
+    direction = 1
+  ) +
+
+  # Format category names
+  scale_x_discrete(
+    labels = function(x) {
+      stringr::str_wrap(
+        stringr::str_to_sentence(
+          stringr::str_replace_all(x, "_", " ")
+        ),
+        width = 30
+      )
+    }
+  ) +
+
+  # Percentage axis
+  scale_y_continuous(
+    limits = c(
+      0,
+      max(workload_count$percentage) * 1.25
+    ),
+    breaks = scales::breaks_width(10),
+    labels = scales::label_number(suffix = "%")
+  ) +
+
+  # Horizontal orientation
+  coord_flip(clip = "off") +
+
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(
+    title = "Most Common Reconstructive Workload Categories",
+    subtitle = paste0(
+      "Top 3 workload categories reported by surgeons (N = ",
+      total_respondents,
+      ")"
+    ),
+    x = NULL,
+    y = "% of respondents selecting as top 3",
+    caption = paste(
+      "Respondents could select up to three categories.",
+      "Percentages may exceed 100% when summed."
+    )
+  ) +
+
+  theme_policy() +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 13
+    ),
+    axis.ticks = element_blank(),
+    axis.title.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    ),
+    plot.margin = margin(10, 45, 10, 10)
+  )
+
+# Display figure
+as_interactive(workload_bar)
+```
+
+```{r setup_eq_infra, include=F}
+# PURPOSE: Define infrastructure/equipment item groups, labels, and validation checks.
+
+# Standardize keys without changing the analysis source files.
+# iconv removes invalid bytes; inspect country labels after import if needed.
+clean_text <- function(x) {
+  # Calculate or assign `x` for use in the subsequent analysis or visualization.
+  x <- iconv(as.character(x), from = "", to = "UTF-8", sub = "")
+  stringr::str_squish(x)
+}
+
+# Shared counts/labels and response levels used by both domains.
+availability_levels <- c("consistently", "intermittently", "not_available")
+# Calculate or assign `infra_response_levels` for use in the subsequent analysis or visualization.
+infra_response_levels <- availability_levels
+# Calculate or assign `eq_response_levels` for use in the subsequent analysis or visualization.
+eq_response_levels <- availability_levels
+
+# Define `infrastructure_labels` as the reference values, categories, or labels used in this section.
+infrastructure_labels <- c(
+  infra_electricity = "Electricity", infra_water = "Running Water",
+  infra_oxygen = "Oxygen Supply", infra_blood_bank = "Blood Bank",
+  infra_icu = "Intensive Care Unit (ICU)",
+  infra_physio = "Physiotherapy Services",
+  infra_ot_therapy = "Occupational Therapy Services",
+  infra_histopath = "Histopathology Services", infra_xray = "X-Ray",
+  infra_ultrasound = "Ultrasound", infra_ct = "CT Scanner",
+  infra_dedicated_or = "Dedicated Operating Room Time for PRS",
+  infra_temp_or = "Temperature-Controlled Operating Room",
+  infra_warming = "Patient Warming Devices"
+)
+
+# Define `equipment_labels` as the reference values, categories, or labels used in this section.
+equipment_labels <- c(
+  eq_dermatome = "Dermatome/Humby Knife", eq_skin_mesher = "Skin Mesher",
+  eq_burn_dressings = "Burn Dressings", eq_skin_substitutes = "Skin Substitutes",
+  eq_npwt = "Negative Pressure Wound Therapy (VAC)",
+  eq_electrosurgical = "Electrosurgical Unit",
+  eq_sterilization = "Sterilization Equipment",
+  eq_anesthesia = "Functional Anesthesia Machine",
+  eq_ventilator = "Mechanical Ventilator",
+  eq_pulse_oximeter = "Pulse Oximeter", eq_loupes = "Surgical Loupes",
+  eq_microsurgical = "Microsurgical Instruments",
+  eq_microscope = "Operating Microscope",
+  eq_sutures = "Fine Monofilament Sutures", eq_iv_fluids = "IV Fluids",
+  eq_catheters = "Urinary Catheters", eq_tourniquets = "Tourniquets",
+  eq_splinting = "Splinting Materials"
+)
+
+# Define `equipment_groups` as the reference values, categories, or labels used in this section.
+equipment_groups <- c(
+  eq_burn_dressings = "Essential", eq_electrosurgical = "Essential",
+  eq_sterilization = "Essential", eq_anesthesia = "Essential",
+  eq_pulse_oximeter = "Essential", eq_sutures = "Essential",
+  eq_iv_fluids = "Essential", eq_catheters = "Essential",
+  eq_tourniquets = "Essential", eq_splinting = "Essential",
+  eq_dermatome = "PRS-specific", eq_skin_mesher = "PRS-specific",
+  eq_loupes = "PRS-specific", eq_microsurgical = "PRS-specific",
+  eq_microscope = "Advanced", eq_npwt = "Advanced",
+  eq_skin_substitutes = "Advanced", eq_ventilator = "Advanced"
+)
+
+# Define `equipment_classification` as the reference values, categories, or labels used in this section.
+equipment_classification <- tibble(
+  item = names(equipment_groups),
+  group = factor(unname(equipment_groups),
+                 levels = c("Essential", "PRS-specific", "Advanced"))
+)
+
+# Extract column names before aggregating or scoring data.
+infra_names <- names(dplyr::select(df, starts_with("infra_")))
+# Create `eq_names` by transforming and/or summarizing the source records as specified below.
+eq_names <- names(dplyr::select(df, starts_with("eq_")))
+if (!length(infra_names) || !length(eq_names)) {
+  stop("Infrastructure or equipment columns could not be found in df.")
+}
+if (length(setdiff(eq_names, names(equipment_groups)))) {
+  stop("Equipment items missing group assignments: ",
+       paste(setdiff(eq_names, names(equipment_groups)), collapse = ", "))
+}
+if (length(setdiff(infra_names, names(infrastructure_labels))) ||
+    length(setdiff(eq_names, names(equipment_labels)))) {
+  warning("Some infrastructure/equipment labels are missing; raw names will be used.")
+}
+```
+
+```{r helper-functions, include=FALSE}
+# PURPOSE: Define reusable aggregation, visualization, and summary functions for facility availability analyses.
+# ---- 1. Reusable functions (defined before any data transformations) --------
+
+# Aggregate surgeon responses to one facility-by-item modal response.
+# A tie is recorded as no_consensus; missing answers are not counted.
+aggregate_facility_availability <- function(data, variables,
+                                            facility_var = "main_facility_name") {
+  # Define `required` as the reference values, categories, or labels used in this section.
+  required <- c(facility_var, variables)
+  if (!all(required %in% names(data))) {
+    stop("Missing columns: ", paste(setdiff(required, names(data)), collapse = ", "))
+  }
+  # Calculate or assign `long_data` for use in the subsequent analysis or visualization.
+  long_data <- data %>%
+    # Create or recode variables using the expressions below.
+    mutate(facility_name = clean_text(.data[[facility_var]])) %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(!is.na(facility_name), facility_name != "") %>%
+    # Keep and order the specified columns for the next processing step.
+    select(facility_name, all_of(variables)) %>%
+    # Reshape selected columns into a long format for analysis or plotting.
+    pivot_longer(cols = all_of(variables), names_to = "item",
+                 values_to = "frequency") %>%
+    # Create or recode variables using the expressions below.
+    mutate(frequency = clean_text(frequency),
+           frequency = str_replace_all(str_to_lower(frequency), "\\s+", "_"),
+           frequency = na_if(frequency, ""))
+  # Calculate or assign `unknown` for use in the subsequent analysis or visualization.
+  unknown <- setdiff(unique(na.omit(long_data$frequency)), availability_levels)
+  if (length(unknown)) {
+    stop("Unexpected availability responses: ", paste(unknown, collapse = ", "))
+  }
+  long_data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(!is.na(frequency)) %>%
+    # Count observations by the indicated categories or identifiers.
+    count(facility_name, item, frequency, name = "n") %>%
+    # Define the groups used for subsequent grouped calculations.
+    group_by(facility_name, item) %>%
+    # Calculate one or more summary statistics for each current group.
+    summarise(
+      n_surgeons = sum(n),
+      agreement_pct = 100 * max(n) / sum(n),
+      availability = if (sum(n == max(n)) == 1L) {
+        frequency[which.max(n)]
+      } else {
+        "no_consensus"
+      },
+      .groups = "drop"
+    )
+}
+
+# Transform categorical respondent responses to percentages within each item.
+calculate_respondent_heatmap <- function(data, item_names, item_col) {
+  data %>%
+    # Keep and order the specified columns for the next processing step.
+    select(all_of(item_names)) %>%
+    # Reshape selected columns into a long format for analysis or plotting.
+    pivot_longer(cols = everything(), names_to = item_col,
+                 values_to = "frequency") %>%
+    # Create or recode variables using the expressions below.
+    mutate(frequency = str_replace_all(str_to_lower(clean_text(frequency)),
+                                       "\\s+", "_"),
+           # Choose values from the true or false branch of this condition.
+           frequency = if_else(frequency %in% availability_levels,
+                               frequency, NA_character_),
+           frequency = factor(frequency, levels = availability_levels)) %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(!is.na(frequency)) %>%
+    # Count observations by the indicated categories or identifiers.
+    count(.data[[item_col]], frequency, name = "n") %>%
+    # Add missing combinations of categories to make the summaries explicit.
+    complete(!!rlang::sym(item_col),
+             frequency = factor(availability_levels, levels = availability_levels),
+             fill = list(n = 0)) %>%
+    # Define the groups used for subsequent grouped calculations.
+    group_by(.data[[item_col]]) %>%
+    # Create or recode variables using the expressions below.
+    mutate(total = sum(n), percent = if_else(total > 0, 100 * n / total, NA_real_)) %>%
+    # Remove grouping so later calculations operate on the full data.
+    ungroup()
+}
+
+# Make an item-by-frequency heatmap (works for respondents or facilities).
+plot_availability_heatmap <- function(data, item_var, labels, title, subtitle,
+                                      denominator_label = "Respondents") {
+  # Calculate or assign `item_order` for use in the subsequent analysis or visualization.
+  item_order <- data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(frequency == "consistently") %>%
+    # Sort the resulting observations in the specified order.
+    arrange(desc(percent)) %>% pull(.data[[item_var]]) %>% as.character()
+  # Calculate or assign `plot_data` for use in the subsequent analysis or visualization.
+  plot_data <- data %>%
+    # Create or recode variables using the expressions below.
+    mutate(.item = factor(as.character(.data[[item_var]]), levels = rev(item_order)))
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(plot_data, aes(x = frequency, y = .item, fill = percent)) +
+    # Draw rectangular heatmap cells for the mapped values.
+    geom_tile(color = "white", linewidth = 0.7) +
+    # Add labels to the plotted data marks.
+    geom_text(aes(label = if_else(is.na(percent), "NR", sprintf("%.1f%%", percent)),
+                  # Assign values according to the listed conditions, in order.
+                  color = case_when(is.na(percent) | percent == 0 ~ "grey50",
+                                    percent >= 50 ~ "white", TRUE ~ "black")),
+              size = 3.4, show.legend = FALSE) +
+    scale_color_identity() +
+    # Map numeric fill values onto the selected continuous color palette.
+    scale_fill_gradientn(colors = viz_heat_colors, limits = c(0, 100),
+                         breaks = c(0, 25, 50, 75, 100),
+                         labels = function(x) paste0(x, "%"),
+                         name = paste0(denominator_label, " (%)"),
+                         na.value = "grey90") +
+    # Customize the discrete horizontal-axis categories and labels.
+    scale_x_discrete(labels = c(consistently = "Consistently",
+                                intermittently = "Intermittently",
+                                not_available = "Not Available")) +
+    # Customize the discrete vertical-axis categories and labels.
+    scale_y_discrete(labels = function(x) {
+      str_wrap(coalesce(unname(labels[x]), x), 40)
+    }) +
+    # Set the plot title, axis labels, legend labels, or explanatory caption.
+    labs(title = title, subtitle = subtitle, x = NULL, y = NULL,
+         caption = paste0("Percentages based on valid responses/classifications per item. ",
+                          "NR = no valid classifications.")) +
+    theme_policy(12) +
+    theme(panel.grid = element_blank(),
+          axis.text.x = element_text(size = 10, face = "bold"),
+          axis.text.y = element_text(size = 10), legend.position = "none")
+}
+
+# Summarize classified facility responses for a single item (no duplicate rows).
+calculate_facility_heatmap <- function(facility_data, item_names) {
+  facility_data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(item %in% item_names, availability %in% availability_levels) %>%
+    # Create or recode variables using the expressions below.
+    mutate(frequency = factor(availability, levels = availability_levels)) %>%
+    # Count observations by the indicated categories or identifiers.
+    count(item, frequency, name = "n") %>%
+    # Add missing combinations of categories to make the summaries explicit.
+    complete(item = item_names,
+             frequency = factor(availability_levels, levels = availability_levels),
+             fill = list(n = 0)) %>%
+    # Define the groups used for subsequent grouped calculations.
+    group_by(item) %>%
+    # Create or recode variables using the expressions below.
+    mutate(total = sum(n), percent = if_else(total > 0, 100 * n / total, NA_real_)) %>%
+    # Remove grouping so later calculations operate on the full data.
+    ungroup()
+}
+
+# Calculate share of facilities that classify each equipment item consistently.
+calculate_equipment_availability <- function(data, country_name = NULL) {
+  if (!is.null(country_name)) data <- filter(data, facility_country == country_name)
+  if (!nrow(data)) stop("No equipment data for the requested group.")
+  # Calculate or assign `item_summary` for use in the subsequent analysis or visualization.
+  item_summary <- data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(item %in% equipment_classification$item) %>%
+    # Define the groups used for subsequent grouped calculations.
+    group_by(item) %>%
+    # Calculate one or more summary statistics for each current group.
+    summarise(
+      n_facilities = n_distinct(facility_name[availability %in% availability_levels]),
+      n_consistently = n_distinct(facility_name[availability == "consistently"]),
+      .groups = "drop"
+    )
+  equipment_classification %>%
+    # Merge matching reference data while keeping all rows in the current dataset.
+    left_join(item_summary, by = "item") %>%
+    # Create or recode variables using the expressions below.
+    mutate(n_facilities = replace_na(n_facilities, 0L),
+           n_consistently = replace_na(n_consistently, 0L),
+           # Choose values from the true or false branch of this condition.
+           percent = if_else(n_facilities > 0, 100 * n_consistently / n_facilities,
+                             NA_real_),
+           # Choose values from the true or false branch of this condition.
+           pct_label = if_else(is.na(percent), "NR",
+                               sprintf("%.1f%% (%s/%s)", percent,
+                                       n_consistently, n_facilities)))
+}
+
+# Draw consistent grouped equipment charts for overall and country results.
+plot_equipment_availability <- function(equipment_data, title, subtitle) {
+  # Calculate or assign `item_levels` for use in the subsequent analysis or visualization.
+  item_levels <- equipment_data %>% arrange(group, desc(percent), item) %>% pull(item)
+  # Calculate or assign `plot_data` for use in the subsequent analysis or visualization.
+  plot_data <- equipment_data %>%
+    # Create or recode variables using the expressions below.
+    mutate(item = factor(item, levels = rev(item_levels)))
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(plot_data, aes(x = percent, y = item, fill = percent)) +
+    # Draw bars whose heights represent the computed values.
+    geom_col(width = 0.75, na.rm = TRUE) +
+    # Add labels to the plotted data marks.
+    geom_text(aes(x = if_else(is.na(percent), 2, percent + 2), label = pct_label),
+              hjust = 0, size = 3.2) +
+    # Map numeric fill values onto the selected continuous color palette.
+    scale_fill_gradientn(colors = viz_geo_colors, limits = c(0, 100)) +
+    scale_x_continuous(breaks = seq(0, 100, 20),
+                       labels = scales::label_number(suffix = "%")) +
+    coord_cartesian(xlim = c(0, 125), clip = "off") +
+    # Customize the discrete vertical-axis categories and labels.
+    scale_y_discrete(labels = function(x) {
+      str_wrap(coalesce(unname(equipment_labels[x]), x), 35)
+    }) +
+    facet_grid(rows = vars(group), scales = "free_y", space = "free_y", switch = "y") +
+    # Set the plot title, axis labels, legend labels, or explanatory caption.
+    labs(title = title, subtitle = subtitle,
+         x = "Facilities with Consistent Availability (%)", y = NULL, fill = NULL,
+         caption = paste("Facility classifications based on modal surgeon responses.",
+                         "Percentages use valid unambiguous item classifications;",
+                         "NR = no valid classifications; labels show % (n/N).")) +
+    theme_policy(12) +
+    theme(axis.ticks = element_blank(), panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank(),
+          strip.text.y.left = element_text(face = "bold"),
+          strip.placement = "outside", legend.position = "none",
+          plot.margin = margin(10, 45, 10, 10))
+}
+
+# Create a reusable Cleveland dot plot for equipment availability.
+plot_equipment_dotplot <- function(
+    equipment_data,
+    title = "Availability of Surgical Equipment and Supplies",
+    subtitle = NULL,
+    label_width = 32,
+    max_dot_size = 9
+) {
+
+  # Check that the required columns are present.
+  required_vars <- c("item", "group", "percent")
+
+  if (!all(required_vars %in% names(equipment_data))) {
+    stop(
+      "Missing required columns: ",
+      paste(
+        setdiff(required_vars, names(equipment_data)),
+        collapse = ", "
+      )
+    )
+  }
+
+  # Define the category order and colors.
+  category_colors <- c(
+    "Essential" = viz_colors[["orange_light"]],
+    "PRS-specific" = viz_colors[["orange"]],
+    "Advanced" = viz_colors[["red"]]
+  )
+
+  # Prepare equipment labels and plotting order.
+  plot_data <- equipment_data %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      group = factor(
+        as.character(group),
+        levels = names(category_colors)
+      ),
+
+      equipment_label = dplyr::coalesce(
+        unname(equipment_labels[as.character(item)]),
+        as.character(item)
+      ),
+
+      equipment_label = stringr::str_wrap(
+        equipment_label,
+        width = label_width
+      )
+    ) %>%
+    # Sort the resulting observations in the specified order.
+    arrange(group, percent, item) %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      equipment_label = factor(
+        equipment_label,
+        levels = unique(equipment_label)
+      )
+    )
+
+  # Construct the Cleveland dot plot.
+  ggplot(
+    plot_data,
+    aes(
+      x = percent,
+      y = equipment_label
+    )
+  ) +
+
+    # Add percentage reference lines.
+    geom_vline(
+      xintercept = seq(0, 100, 25),
+      color = "grey90",
+      linewidth = 0.4
+    ) +
+
+    # Larger dots indicate higher percentages.
+    geom_point(
+      aes(
+        color = group,
+        size = percent
+      ),
+      alpha = 0.9,
+      na.rm = TRUE
+    ) +
+
+    # Display percentages to the right of the dots.
+    geom_text(
+      data = function(x) {
+        # Keep only observations that satisfy the stated conditions.
+        dplyr::filter(x, !is.na(percent))
+      },
+      aes(
+        label = sprintf("%.1f%%", percent)
+      ),
+      nudge_x = 3,
+      hjust = 0,
+      size = 3,
+      color = "black"
+    ) +
+
+    # Apply consistent equipment category colors.
+    scale_color_manual(
+      values = category_colors,
+      breaks = names(category_colors),
+      drop = FALSE,
+      name = "Equipment Category"
+    ) +
+
+    # Keep dot sizing consistent across all country plots.
+    scale_size_area(
+      max_size = max_dot_size,
+      limits = c(0, 100),
+      breaks = c(25, 50, 75, 100)
+    ) +
+
+    # Separate equipment groups without showing side labels.
+    facet_grid(
+      group ~ .,
+      scales = "free_y",
+      space = "free_y",
+      drop = FALSE
+    ) +
+
+    # Format percentage axis.
+    scale_x_continuous(
+      breaks = seq(0, 100, 25),
+      labels = scales::label_number(suffix = "%")
+    ) +
+
+    # Allow space for percentage annotations.
+    coord_cartesian(
+      xlim = c(0, 120),
+      clip = "off"
+    ) +
+
+    # Add graph titles and methodological notes.
+    labs(
+      title = title,
+      subtitle = subtitle,
+      x = "Facilities with Consistent Availability (%)",
+      y = NULL,
+      caption = paste(
+        "Availability based on facility-level modal surgeon responses.",
+        "Percentages use valid classifications for each equipment item.",
+        "Dot size represents consistent availability.",
+        "NR = no valid classifications."
+      )
+    ) +
+
+    # Apply the established visualization theme.
+    theme_policy(base_size = 12) +
+
+    theme(
+      axis.ticks = element_blank(),
+      panel.grid = element_blank(),
+      axis.text.y = element_text(size = 10),
+
+      # Remove facet/category text on the side.
+      strip.text.y = element_blank(),
+      strip.background = element_blank(),
+
+      # Show the equipment category legend at the bottom.
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.title = element_text(
+        size = 10,
+        face = "bold"
+      ),
+      legend.text = element_text(size = 9),
+
+      plot.caption = element_text(
+        size = 9,
+        color = "grey40",
+        hjust = 0
+      ),
+
+      plot.margin = margin(10, 45, 10, 10)
+    ) +
+
+    # Keep category colors in the legend, but hide size legend.
+    guides(
+      color = guide_legend(
+        title = "Equipment Category",
+        override.aes = list(size = 5)
+      ),
+      size = "none"
+    )
+}
+
+# Convert facility availability counts to diverging bar plotting data.
+make_gap_plot_data <- function(summary_data, item_order = NULL) {
+  if (is.null(item_order)) {
+    item_order <- summary_data %>%
+      # Keep only observations that satisfy the stated conditions.
+      filter(availability == "not_available") %>%
+      # Sort the resulting observations in the specified order.
+      arrange(desc(percent), item) %>% pull(item)
+  }
+  summary_data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(availability %in% c("not_available", "consistently")) %>%
+    # Create or recode variables using the expressions below.
+    mutate(plot_percent = if_else(availability == "not_available", -percent, percent),
+           # Choose values from the true or false branch of this condition.
+           availability_label = if_else(availability == "not_available",
+                                        "Not Available", "Consistently Available"),
+           # Choose values from the true or false branch of this condition.
+           pct_label = if_else(is.na(percent), "NR",
+                               sprintf("%.1f%% (%s/%s)", percent, n, total)),
+           item = factor(item, levels = rev(item_order)))
+}
+
+# Reusable diverging plot for overall and per-country infrastructure gaps.
+plot_infra_gap <- function(data, title, subtitle) {
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(data, aes(x = plot_percent, y = item, fill = availability_label)) +
+    # Draw bars whose heights represent the computed values.
+    geom_col(width = 0.7, position = "identity", na.rm = TRUE) +
+    # Add labels to the plotted data marks.
+    geom_text(data = function(x) filter(x, !is.na(plot_percent)),
+              aes(label = pct_label,
+                  # Choose values from the true or false branch of this condition.
+                  hjust = if_else(availability_label == "Not Available", 1.08, -0.08)),
+              size = 3.1) +
+    geom_vline(xintercept = 0, color = "grey40", linewidth = 0.6) +
+    # Apply the manually specified colors to fill categories.
+    scale_fill_manual(values = c("Not Available" = viz_colors[["dark_red"]],
+                                 "Consistently Available" = viz_colors[["green"]])) +
+    scale_x_continuous(breaks = seq(-100, 100, 25),
+                       labels = function(x) paste0(abs(x), "%")) +
+    coord_cartesian(xlim = c(-125, 125), clip = "off") +
+    # Customize the discrete vertical-axis categories and labels.
+    scale_y_discrete(labels = function(x) {
+      str_wrap(coalesce(unname(infrastructure_labels[x]), x), 35)
+    }, drop = FALSE) +
+    # Set the plot title, axis labels, legend labels, or explanatory caption.
+    labs(title = title, subtitle = subtitle, x = "Percentage of Facilities",
+         y = NULL, fill = NULL,
+         caption = paste("Facility-level modal surgeon responses.",
+                         "Intermittent availability remains in denominators but is not shown.",
+                         "Missing and tied responses excluded; labels show % (n/N).")) +
+    theme_policy(12) +
+    theme(axis.ticks = element_blank(), panel.grid.major.y = element_blank(),
+          panel.grid.minor = element_blank(), legend.position = "top",
+          plot.margin = margin(10, 40, 10, 10))
+}
+```
+
+```{r prepare-shared-data, include=FALSE}
+# PURPOSE: Create shared clean inputs and identifiers for infrastructure and equipment calculations.
+# ---- 2. Shared inputs and facility-country lookup ---------------------------
+# This chunk runs BEFORE readiness, country gaps, equipment, and figures.
+
+# Validate keys before joining, including multiple country assignments.
+facility_country_lookup <- facility_df %>%
+  transmute(facility_name = clean_text(facility_name),
+            facility_country = na_if(clean_text(facility_country), "")) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(facility_name), facility_name != "") %>% distinct()
+# Calculate or assign `country_conflicts` for use in the subsequent analysis or visualization.
+country_conflicts <- facility_country_lookup %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_name) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_countries = n_distinct(facility_country, na.rm = TRUE), .groups = "drop") %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(n_countries > 1)
+if (nrow(country_conflicts)) stop("Facility names map to multiple countries: ",
+                                  paste(country_conflicts$facility_name, collapse = ", "))
+# Calculate or assign `facility_country_lookup` for use in the subsequent analysis or visualization.
+facility_country_lookup <- facility_country_lookup %>%
+  # Sort the resulting observations in the specified order.
+  arrange(facility_name, is.na(facility_country)) %>%
+  # Remove repeated records for the selected identifying fields.
+  distinct(facility_name, .keep_all = TRUE)
+
+# Calculate facility classifications once (do NOT redefine these later).
+infra_facility_summary <- aggregate_facility_availability(df, infra_names)
+# Calculate or assign `eq_facility_summary` for use in the subsequent analysis or visualization.
+eq_facility_summary    <- aggregate_facility_availability(df, eq_names)
+# Calculate or assign `infra_facility_country` for use in the subsequent analysis or visualization.
+infra_facility_country <- infra_facility_summary %>%
+  # Merge matching reference data while keeping all rows in the current dataset.
+  left_join(facility_country_lookup, by = "facility_name", relationship = "many-to-one")
+# Calculate or assign `eq_facility_country` for use in the subsequent analysis or visualization.
+eq_facility_country <- eq_facility_summary %>%
+  # Merge matching reference data while keeping all rows in the current dataset.
+  left_join(facility_country_lookup, by = "facility_name", relationship = "many-to-one")
+
+# Country lists get domain-specific names to avoid accidental overwriting.
+infra_countries <- sort(unique(na.omit(infra_facility_country$facility_country)))
+# Calculate or assign `eq_countries` for use in the subsequent analysis or visualization.
+eq_countries <- sort(unique(na.omit(eq_facility_country$facility_country)))
+
+# Respondent-level heatmap data (different denominator from facility-level data).
+infra_heatmap_data <- calculate_respondent_heatmap(df, infra_names, "infrastructure")
+# Calculate or assign `eq_heatmap_data` for use in the subsequent analysis or visualization.
+eq_heatmap_data <- calculate_respondent_heatmap(df, eq_names, "equipment")
+
+# Facility-level heatmaps (valid modal classifications only).
+infra_facility_heatmap_data <- calculate_facility_heatmap(infra_facility_summary, infra_names)
+# Calculate or assign `eq_facility_heatmap_data` for use in the subsequent analysis or visualization.
+eq_facility_heatmap_data <- calculate_facility_heatmap(eq_facility_summary, eq_names)
+
+# Diagnostic: unmatched facilities remain excluded from country comparisons.
+unmatched_infrastructure_facilities <- infra_facility_country %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(is.na(facility_country)) %>% distinct(facility_name)
+# Calculate or assign `unmatched_equipment_facilities` for use in the subsequent analysis or visualization.
+unmatched_equipment_facilities <- eq_facility_country %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(is.na(facility_country)) %>% distinct(facility_name)
+```
+
+```{r calculate-infrastructure, include=FALSE}
+# PURPOSE: Summarize infrastructure availability and identify facility-level gaps.
+# ---- 3. Infrastructure calculations (before any infrastructure graphs) -----
+
+# Make an explicit facility-by-item grid to retain missing classifications.
+# This prevents missing items from being silently treated as zero availability.
+infra_scores_long <- infra_facility_country %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(facility_country), facility_country != "") %>%
+  transmute(facility_name, facility_country, item,
+            # Assign values according to the listed conditions, in order.
+            readiness_point = case_when(availability == "consistently" ~ 2L,
+                                        availability == "intermittently" ~ 1L,
+                                        availability == "not_available" ~ 0L,
+                                        TRUE ~ NA_integer_)) %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_name, facility_country) %>%
+  # Add missing combinations of categories to make the summaries explicit.
+  complete(item = infra_names) %>% ungroup()
+
+# Calculate or assign `infra_readiness_facility` for use in the subsequent analysis or visualization.
+infra_readiness_facility <- infra_scores_long %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_name, facility_country) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_consistently = sum(readiness_point == 2L, na.rm = TRUE),
+            n_classified = sum(!is.na(readiness_point)),
+            n_missing = length(infra_names) - n_classified,
+            readiness_score = if (n_classified == length(infra_names)) {
+              sum(readiness_point)
+            } else NA_real_,
+            .groups = "drop")
+
+# Calculate or assign `infra_readiness_country` for use in the subsequent analysis or visualization.
+infra_readiness_country <- infra_readiness_facility %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_facilities = sum(!is.na(readiness_score)),
+            n_incomplete = sum(is.na(readiness_score)),
+            mean_score = if (all(is.na(readiness_score))) NA_real_ else
+              mean(readiness_score, na.rm = TRUE),
+            sd_score = sd(readiness_score, na.rm = TRUE),
+            .groups = "drop") %>%
+  # Create or recode variables using the expressions below.
+  mutate(se = sd_score / sqrt(n_facilities),
+         # Choose values from the true or false branch of this condition.
+         t_value = if_else(n_facilities >= 2,
+                           qt(0.975, df = pmax(n_facilities - 1, 1)), NA_real_),
+         ci_lower = pmax(0, mean_score - t_value * se),
+         ci_upper = pmin(2 * length(infra_names), mean_score + t_value * se)) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(n_facilities > 0) %>% arrange(desc(mean_score))
+
+# Percentage of infrastructure classified consistently at each complete facility.
+infra_consistency_facility <- infra_scores_long %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country, facility_name) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_classified = sum(!is.na(readiness_point)),
+            n_consistently = sum(readiness_point == 2L, na.rm = TRUE),
+            .groups = "drop") %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(n_classified == length(infra_names)) %>%
+  # Create or recode variables using the expressions below.
+  mutate(pct_consistently = 100 * n_consistently / length(infra_names))
+
+# Calculate or assign `infra_consistency_country` for use in the subsequent analysis or visualization.
+infra_consistency_country <- infra_consistency_facility %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_facilities = n(), mean_pct = mean(pct_consistently),
+            .groups = "drop") %>% arrange(desc(mean_pct))
+
+# Item availability among facilities with a valid classification for that item.
+infra_valid <- infra_facility_country %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(facility_country), facility_country != "",
+         item %in% infra_names, availability %in% availability_levels)
+# Calculate or assign `all_infra_countries` for use in the subsequent analysis or visualization.
+all_infra_countries <- infra_countries
+# Calculate or assign `infra_country_heatmap` for use in the subsequent analysis or visualization.
+infra_country_heatmap <- infra_valid %>%
+  # Count observations by the indicated categories or identifiers.
+  count(facility_country, item, availability, name = "n") %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country, item) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(n_facilities = sum(n),
+            n_consistently = sum(n[availability == "consistently"]),
+            .groups = "drop") %>%
+  # Add missing combinations of categories to make the summaries explicit.
+  complete(facility_country = all_infra_countries, item = infra_names,
+           fill = list(n_facilities = 0L, n_consistently = 0L)) %>%
+  # Create or recode variables using the expressions below.
+  mutate(percent = if_else(n_facilities > 0,
+                           100 * n_consistently / n_facilities, NA_real_),
+         # Choose values from the true or false branch of this condition.
+         cell_label = if_else(is.na(percent), "NR",
+                              sprintf("%.1f%%\n(%s/%s)", percent,
+                                      n_consistently, n_facilities)))
+
+# Order country heatmap columns by mean classified facility consistency.
+country_order <- infra_valid %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country, facility_name) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(pct_consistently = 100 * mean(availability == "consistently"),
+            .groups = "drop") %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(mean_pct = mean(pct_consistently), .groups = "drop") %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(mean_pct)) %>% pull(facility_country)
+# Define `country_order` as the reference values, categories, or labels used in this section.
+country_order <- c(country_order, setdiff(all_infra_countries, country_order))
+
+# Calculate or assign `infra_item_order` for use in the subsequent analysis or visualization.
+infra_item_order <- infra_valid %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(item) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(percent = 100 * mean(availability == "consistently"),
+            .groups = "drop") %>%
+  # Sort the resulting observations in the specified order.
+  arrange(desc(percent)) %>% pull(item)
+# Define `infra_item_order` as the reference values, categories, or labels used in this section.
+infra_item_order <- c(infra_item_order, setdiff(infra_names, infra_item_order))
+# Calculate or assign `infra_country_heatmap` for use in the subsequent analysis or visualization.
+infra_country_heatmap <- infra_country_heatmap %>%
+  # Create or recode variables using the expressions below.
+  mutate(facility_country = factor(facility_country, levels = country_order),
+         item = factor(item, levels = rev(infra_item_order)))
+
+# Overall and country-specific diverging gap data reuse the same denominator rule.
+infra_gap_data <- infra_facility_summary %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(item %in% infra_names, availability %in% availability_levels) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(item, availability, name = "n") %>%
+  # Add missing combinations of categories to make the summaries explicit.
+  complete(item = infra_names, availability = availability_levels,
+           fill = list(n = 0)) %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(item) %>%
+  # Create or recode variables using the expressions below.
+  mutate(total = sum(n), percent = if_else(total > 0, 100 * n / total, NA_real_)) %>%
+  # Remove grouping so later calculations operate on the full data.
+  ungroup()
+# Calculate or assign `infra_diverging_data` for use in the subsequent analysis or visualization.
+infra_diverging_data <- make_gap_plot_data(infra_gap_data)
+
+# Calculate or assign `infra_country_gap_data` for use in the subsequent analysis or visualization.
+infra_country_gap_data <- infra_facility_country %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(facility_country), facility_country != "",
+         item %in% infra_names, availability %in% availability_levels) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(facility_country, item, availability, name = "n") %>%
+  # Add missing combinations of categories to make the summaries explicit.
+  complete(nesting(facility_country), item = infra_names,
+           availability = availability_levels, fill = list(n = 0)) %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(facility_country, item) %>%
+  # Create or recode variables using the expressions below.
+  mutate(total = sum(n), percent = if_else(total > 0, 100 * n / total, NA_real_)) %>%
+  # Remove grouping so later calculations operate on the full data.
+  ungroup()
+```
+
+```{r calculate-equipment, include=FALSE}
+# PURPOSE: Summarize reported equipment availability using the shared inputs.
+# ---- 4. Equipment calculations (before any equipment graphs) ---------------
+equipment_overall_data <- calculate_equipment_availability(eq_facility_country)
+# Calculate or assign `eq_overall_n_facilities` for use in the subsequent analysis or visualization.
+eq_overall_n_facilities <- n_distinct(eq_facility_country$facility_name, na.rm = TRUE)
+
+# Precalculate country tables once, then reuse in per-country plotting function.
+equipment_country_data <- setNames(
+  lapply(eq_countries, function(ctry) {
+    calculate_equipment_availability(eq_facility_country, ctry)
+  }), eq_countries
+)
+```
+
+# Infrastructure
+
+## Availability: Surgeon-reported heatmap
+
+```{r infrastructure-respondent-heatmap, echo=F}
+# PURPOSE: Show the infrastructure availability distribution based on respondent reports.
+infra_respondent_heatmap <- plot_availability_heatmap(
+  infra_heatmap_data, "infrastructure", infrastructure_labels,
+  "Infrastructure Available",
+  "Distribution of surgeon-reported infrastructure frequency",
+  "Respondents"
+)
+as_interactive(infra_respondent_heatmap)
+```
+
+## Consistently Available Infrastructure
+
+```{r infrastructure-consistency-country, echo=F}
+# PURPOSE: Compare consistent infrastructure availability between represented countries.
+infra_consistency_bar <- infra_consistency_country %>%
+  # Create or recode variables using the expressions below.
+  mutate(country_label = paste0(facility_country, " (n = ", n_facilities, ")")) %>%
+  # Initialize a plot with the specified data and aesthetic mappings.
+  ggplot(aes(x = reorder(country_label, mean_pct), y = mean_pct, fill = mean_pct)) +
+  # Draw bars whose heights represent the computed values.
+  geom_col(width = 0.75) +
+  # Add labels to the plotted data marks.
+  geom_text(aes(label = sprintf("%.1f%%", mean_pct)), hjust = -0.15, size = 3.5) +
+  # Map numeric fill values onto the selected continuous color palette.
+  scale_fill_gradientn(colors = viz_geo_colors, limits = c(0, 100)) +
+  scale_y_continuous(breaks = seq(0, 100, 20),
+                     labels = scales::label_number(suffix = "%")) +
+  # Exchange the plot axes to improve category-label readability.
+  coord_flip(ylim = c(0, 105), clip = "off") +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(title = "Consistently Available Infrastructure by Country",
+       subtitle = "Mean percentage of assessed items consistently available at complete facilities",
+       x = NULL, y = "Consistently available (%)",
+       caption = paste("Facility-level modal surgeon responses; complete facility classifications only.",
+                       "n = number of facilities.")) +
+  theme_policy(12) +
+  theme(axis.ticks = element_blank(), panel.grid.major.y = element_blank(),
+        legend.position = "none", plot.margin = margin(10, 50, 10, 10))
+as_interactive(infra_consistency_bar)
+```
+
+## Heatmap by Country and Infrastructure
+
+```{r infrastructure-country-heatmap, fig.width=13, fig.height=9}
+# PURPOSE: Display cross-country infrastructure patterns in a heatmap.
+infra_country_heatmap_plot <- ggplot(
+  infra_country_heatmap,
+  aes(x = facility_country, y = item, fill = percent)
+) +
+  # Draw rectangular heatmap cells for the mapped values.
+  geom_tile(color = "white", linewidth = 0.7) +
+  # Add labels to the plotted data marks.
+  geom_text(aes(label = cell_label,
+                # Assign values according to the listed conditions, in order.
+                color = case_when(is.na(percent) | percent == 0 ~ "grey50",
+                                  percent >= 50 ~ "white", TRUE ~ "black")),
+            size = 2.7, lineheight = 0.9, show.legend = FALSE) +
+  scale_color_identity() +
+  # Map numeric fill values onto the selected continuous color palette.
+  scale_fill_gradientn(colors = viz_heat_colors, limits = c(0, 100),
+                       breaks = seq(0, 100, 25),
+                       labels = function(x) paste0(x, "%"),
+                       name = "Facilities (%)", na.value = "grey90") +
+  # Customize the discrete horizontal-axis categories and labels.
+  scale_x_discrete(labels = function(x) str_to_title(str_replace_all(x, "_", " ")),
+                   drop = FALSE) +
+  # Customize the discrete vertical-axis categories and labels.
+  scale_y_discrete(labels = function(x) {
+    str_wrap(coalesce(unname(infrastructure_labels[x]), x), 35)
+  }, drop = FALSE) +
+  # Set the plot title, axis labels, legend labels, or explanatory caption.
+  labs(title = "Consistent Infrastructure Availability by Country",
+       subtitle = "Percentage of classified facilities reporting consistent item availability",
+       x = NULL, y = NULL,
+       caption = paste("Cell labels: percentage (n/N) among valid facility-level classifications.",
+                       "NR = no valid classifications. Country samples vary.")) +
+  theme_policy(12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+        axis.ticks = element_blank(), panel.grid = element_blank(),
+        legend.position = "none")
+
+as_interactive(infra_country_heatmap_plot)
+```
+
+## Critical Infrastructure Gaps
+
+```{r infrastructure-critical-gaps, echo=F}
+# PURPOSE: Visualize the most significant reported infrastructure gaps.
+infra_gap_plot <- plot_infra_gap(
+  infra_diverging_data,
+  "Critical Infrastructure Gaps",
+  "Consistently available versus unavailable infrastructure across surveyed facilities"
+)
+as_interactive(infra_gap_plot)
+```
+
+# Equipment
+
+## Availability: Surgeon-reported heatmap
+
+```{r equipment-respondent-heatmap, echo=F}
+# PURPOSE: Show equipment availability patterns reported by individual respondents.
+eq_respondent_heatmap <- plot_availability_heatmap(
+  eq_heatmap_data, "equipment", equipment_labels,
+  "Equipment Available", "Distribution of surgeon-reported equipment frequency",
+  "Respondents"
+)
+as_interactive(eq_respondent_heatmap)
+```
+
+## Facility-level Equipment: Essential vs. Specialized
+
+```{r equipment_overall_dotplot, fig.width=11, fig.height=6, echo=FALSE}
+# PURPOSE: Plot equipment availability percentages for the selected items.
+# Create the overall equipment availability Cleveland dot plot.
+equipment_dotplot <- plot_equipment_dotplot(
+  equipment_data = equipment_overall_data,
+  title = "Availability of Surgical Equipment and Supplies",
+  subtitle = sprintf(
+    "Consistent availability across surveyed facilities (N = %s)",
+    eq_overall_n_facilities
+  )
+)
+
+# Display the overall figure.
+as_interactive(equipment_dotplot)
+```
+
+# FACILITY-LEVEL AVAILABILITY HEATMAPS
+
+## Infrastructure at Facility Level
+
+```{r infrastructure-facility-heatmap, echo=F}
+# PURPOSE: Show infrastructure availability aggregated at the facility level.
+
+infra_facility_heatmap <- plot_availability_heatmap(
+  infra_facility_heatmap_data, "item", infrastructure_labels,
+  "Infrastructure Availability Across Facilities",
+  "Based on most commonly reported surgeon response per facility/item",
+  "Facilities")
+
+as_interactive(infra_facility_heatmap)
+```
+
+## Equipment at Facility Level
+
+```{r equipment-facility-heatmap, echo=F}
+# PURPOSE: Show equipment availability aggregated at the facility level.
+
+equipment_facility_heatmap <- plot_availability_heatmap(
+  eq_facility_heatmap_data, "item", equipment_labels,
+  "Equipment Availability Across Facilities",
+  "Based on most commonly reported surgeon response per facility/item",
+  "Facilities"
+)
+
+as_interactive(equipment_facility_heatmap)
+```
+
+# Training
+
+## Training Capacity at Facilities
+
+```{r training_facility_preparation, include=F}
+# PURPOSE: Clean training indicators and consolidate responses into facility-level training records.
+# SECTION 8 — TRAINING CAPACITY AND NEEDS
+
+
+# ------------------------------------------------------------
+# Helper: Repair country-name encoding
+# ------------------------------------------------------------
+
+clean_country_encoding <- function(x) {
+
+  # Convert to character without applying string operations.
+  x <- as.character(x)
+
+  # Repair invalid UTF-8 bytes.
+  # Try conversion from UTF-8 first, then Windows-1252
+  # for strings that could not be decoded.
+  repaired <- iconv(
+    x,
+    from = "UTF-8",
+    to = "UTF-8",
+    sub = NA_character_
+  )
+
+  # Identify strings that failed conversion.
+  failed <- is.na(repaired) & !is.na(x)
+
+  if (any(failed)) {
+    repaired[failed] <- iconv(
+      x[failed],
+      from = "CP1252",
+      to = "UTF-8",
+      sub = "byte"
+    )
+  }
+
+  # Standardize Côte d'Ivoire to an ASCII representation.
+  # This avoids differing apostrophe encodings during joins.
+  repaired <- ifelse(
+    grepl("ivoire", repaired, ignore.case = TRUE),
+    "Cote d'Ivoire",
+    repaired
+  )
+
+  # Remove extra whitespace after encoding repair.
+  repaired <- stringr::str_squish(repaired)
+
+  return(repaired)
+}
+
+# 1. Training variables
+training_vars <- c(
+  "trains_residents",
+  "hosts_outreach",
+  "cpd_available"
+)
+
+# Define `training_labels` as the reference values, categories, or labels used in this section.
+training_labels <- c(
+  "trains_residents" = "Trains PRS Residents/Fellows",
+  "hosts_outreach" = "Hosts Visiting Outreach Teams",
+  "cpd_available" = "Continuing Professional Development Opportunities Available"
+)
+
+
+# ------------------------------------------------------------
+# Create facility characteristics lookup
+# ------------------------------------------------------------
+
+facility_training_lookup <- facility_df %>%
+  transmute(
+    # Standardize facility names.
+    facility_name = stringr::str_squish(
+      as.character(facility_name)
+    ),
+
+    # Repair invalid country-name encodings.
+    facility_country = clean_country_encoding(
+      facility_country
+    ),
+
+    # Standardize facility levels.
+    facility_level = stringr::str_squish(
+      as.character(facility_level)
+    )
+  ) %>%
+
+  # Remove records without a facility name.
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+
+  # Convert empty values into missing values.
+  mutate(
+    facility_country = na_if(facility_country, ""),
+    facility_level = na_if(facility_level, "")
+  ) %>%
+
+  # Keep one consistent set of characteristics per facility.
+  group_by(facility_name) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(
+    # Apply the given operation across the selected columns.
+    across(
+      c(facility_country, facility_level),
+      ~ {
+        values <- unique(.x[!is.na(.x)])
+
+        if (length(values) > 1) {
+          stop(
+            "Conflicting facility characteristics found."
+          )
+        }
+
+        if (length(values) == 0) {
+          NA_character_
+        } else {
+          values[1]
+        }
+      }
+    ),
+    .groups = "drop"
+  )
+
+# Display the facility characteristics lookup.
+facility_training_lookup
+
+# 3. Convert surgeon training responses to long format
+training_long <- df %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    facility_name = str_squish(
+      as.character(main_facility_name)
+    )
+  ) %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(facility_name),
+    facility_name != ""
+  ) %>%
+  # Keep and order the specified columns for the next processing step.
+  select(
+    facility_name,
+    all_of(training_vars)
+  ) %>%
+  # Reshape selected columns into a long format for analysis or plotting.
+  pivot_longer(
+    cols = all_of(training_vars),
+    names_to = "training_indicator",
+    values_to = "response"
+  ) %>%
+  # Create or recode variables using the expressions below.
+  mutate(
+    response = str_to_lower(
+      str_squish(as.character(response))
+    ),
+    response = na_if(response, ""),
+    # Choose values from the true or false branch of this condition.
+    response = if_else(
+      response %in% c("yes", "no"),
+      response,
+      NA_character_
+    )
+  )
+
+
+# 4. Aggregate surgeon responses by facility
+training_facility <- training_long %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(!is.na(response)) %>%
+  # Count observations by the indicated categories or identifiers.
+  count(
+    facility_name,
+    training_indicator,
+    response,
+    name = "n"
+  ) %>%
+  # Define the groups used for subsequent grouped calculations.
+  group_by(
+    facility_name,
+    training_indicator
+  ) %>%
+  # Calculate one or more summary statistics for each current group.
+  summarise(
+    n_surgeons = sum(n),
+
+    agreement_pct = 100 * max(n) / sum(n),
+
+    availability = if (
+      sum(n == max(n)) == 1
+    ) {
+      response[which.max(n)]
+    } else {
+      "no_consensus"
+    },
+
+    .groups = "drop"
+  ) %>%
+  # Merge matching reference data while keeping all rows in the current dataset.
+  left_join(
+    facility_training_lookup,
+    by = "facility_name",
+    relationship = "many-to-one"
+  )
+
+# View facility-level responses
+training_facility
+```
+
+```{r training_capacity_summary, echo=F}
+# PURPOSE: Summarize training capacity across facilities and countries for reporting.
+# TRAINING CAPACITY AT FACILITIES
+# Overall and country-specific training capacity.
+# Section headings show the number of unique facilities.
+
+# 1. Function to summarize training capacity.
+summarise_training_capacity <- function(
+    data,
+    section_label
+) {
+
+  # Count unique facilities represented in this section.
+  section_n <- data %>%
+    # Keep only observations that satisfy the stated conditions.
+    filter(
+      !is.na(facility_name),
+      facility_name != ""
+    ) %>%
+    # Calculate one or more summary statistics for each current group.
+    summarise(
+      n = n_distinct(facility_name)
+    ) %>%
+    pull(n)
+
+  # Add facility count to the section heading.
+  section_heading <- sprintf(
+    "%s (N = %s facilities)",
+    section_label,
+    scales::comma(section_n)
+  )
+
+  # Summarize each training indicator.
+  data %>%
+    # Define the groups used for subsequent grouped calculations.
+    group_by(training_indicator) %>%
+    # Calculate one or more summary statistics for each current group.
+    summarise(
+      yes_n = sum(availability == "yes", na.rm = TRUE),
+      no_n = sum(availability == "no", na.rm = TRUE),
+      total = yes_n + no_n,
+      .groups = "drop"
+    ) %>%
+    # Join lookup values while retaining rows from the right dataset.
+    right_join(
+      tibble(training_indicator = training_vars),
+      by = "training_indicator"
+    ) %>%
+    # Create or recode variables using the expressions below.
+    mutate(
+      # Apply the given operation across the selected columns.
+      across(
+        c(yes_n, no_n, total),
+        ~ tidyr::replace_na(.x, 0L)
+      ),
+
+      Section = section_heading,
+
+      Indicator = unname(
+        training_labels[training_indicator]
+      ),
+
+      `Yes N (%)` = if_else(
+        total > 0,
+        sprintf(
+          "%s (%.1f%%)",
+          yes_n,
+          100 * yes_n / pmax(total, 1)
+        ),
+        "NR"
+      ),
+
+      `No N (%)` = if_else(
+        total > 0,
+        sprintf(
+          "%s (%.1f%%)",
+          no_n,
+          100 * no_n / pmax(total, 1)
+        ),
+        "NR"
+      )
+    ) %>%
+    # Keep and order the specified columns for the next processing step.
+    select(
+      Section,
+      Indicator,
+      `Yes N (%)`,
+      `No N (%)`
+    )
+}
+
+
+# 2. Calculate overall training capacity.
+training_overall <- summarise_training_capacity(
+  data = training_facility,
+  section_label = "Overall"
+)
+
+
+# 3. Calculate training capacity by country.
+training_by_country <- training_facility %>%
+  # Keep only observations that satisfy the stated conditions.
+  filter(
+    !is.na(facility_country),
+    facility_country != ""
+  ) %>%
+  group_split(facility_country) %>%
+  purrr::map_dfr(function(x) {
+
+    summarise_training_capacity(
+      data = x,
+      section_label = paste0(
+        "Country: ",
+        unique(x$facility_country)[1]
+      )
+    )
+  })
+
+
+# 4. Combine overall and country-specific sections.
+training_table_data <- bind_rows(
+  training_overall,
+  training_by_country
+)
+
+
+# 5. Create the formatted gt table.
+gt_training_capacity <- training_table_data %>%
+  # Convert the prepared data into a formatted gt table.
+  gt(
+    rowname_col = "Indicator",
+    groupname_col = "Section"
+  ) %>%
+
+  # Add table title and subtitle.
+  tab_header(
+    title = md("**Training Capacity at Facilities**"),
+    subtitle = "Overall and by country"
+  ) %>%
+
+  # Bold section headings.
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) %>%
+
+  # Align response counts and percentages.
+  cols_align(
+    align = "right",
+    columns = c(
+      `Yes N (%)`,
+      `No N (%)`
+    )
+  ) %>%
+
+  # Apply consistent table styling.
+  tab_options(
+    table.font.size = px(13),
+    data_row.padding = px(6),
+    row_group.background.color = "#F2F4F6",
+    table.border.top.color = "grey70",
+    table.border.bottom.color = "grey70"
+  ) %>%
+
+  # Explain denominators and missing data.
+  tab_source_note(
+    source_note = md(
+      paste(
+        "N represents the number of unique facilities",
+        "in each section.",
+        "Percentages are calculated separately for each",
+        "training indicator using valid, unambiguous",
+        "facility classifications.",
+        "Tied and missing responses are excluded",
+        "from indicator-specific denominators.",
+        "NR = no valid classified facilities."
+      )
+    )
+  )
+
+# 6. Display the training capacity table.
+gt_training_capacity
+
+```

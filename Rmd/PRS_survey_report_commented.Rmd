@@ -1,5 +1,5 @@
 ---
-title: "2nd Chance Survey: Preliminary Report"
+title: "2nd Chance Survey: Final Report"
 author: "Sabina Rodriguez"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -16,7 +16,8 @@ editor_options:
 
 ```{r global_chunk-options, echo=FALSE}
 # PURPOSE: Set global knitr defaults to suppress code, package messages, and warnings in the report output.
-knitr::opts_chunk$set(echo = F, message = F, warning = F)
+knitr::opts_chunk$set(echo = F, message = F, warning = F,
+                      fig.width = 8, fig.height = 5, out.width = "80%")
 ```
 
 ```{r initial_setup, include=F}
@@ -116,9 +117,8 @@ Potential participants were identified through three complementary sources. The 
 
 Of the 51 individuals who accessed the survey, 9 were excluded: 1 declined informed consent and 8 were not currently practicing in SSA, leaving 42 eligible participants (82.4% of those who accessed the survey). The response rate relative to the deduplicated pool was 18.7% (42/225).
 
-![Figure 1. Participant identification and inclusion flowdiagram. Numbers highlighted in red are to be confirmed with COSECSA](../images/survey_flow_diagram_proposed.png)
+![Figure 1. Participant identification and inclusion flowdiagram. Numbers highlighted in red are to be confirmed with COSECSA](../images/2nd_chance_survey_diagram.png)
 
-\-
 
 During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, implying 76 years since accreditation — inconsistent with the reported age and not reliably correctable. Both the accreditation year and the derived years-in-practice variable were treated as missing for this individual, who was retained in all other analyses for which valid data were available.
 
@@ -134,7 +134,7 @@ The demographic composition of survey respondents was examined according to age 
 
 Table 1 summarizes respondents' demographic characteristics and countries of practice. Age, gender, and geographic distributions are reported as frequencies and percentages, with denominators based on available responses for each characteristic.
 
-```{r participant_profile_summary}
+```{r participant_profile_summary, echo=F}
 # PURPOSE: Define reusable functions for respondent frequency/percentage summaries and the formatted demographic profile table.
 # Section one (header)
 .build_section <- function(df, var, section_label, digits = 1,
@@ -293,7 +293,7 @@ gt_participant_table
 
 The combined age and gender distribution is presented in Figure 3. This analysis examines how age groups are represented among male and female respondents, providing additional insight into the demographic composition of participating surgeons.
 
-```{r demo_pyramid, include=F}
+```{r demo_pyramid, echo=F}
 # PURPOSE: Prepare and plot the age-by-gender demographic profile.
 # Calculate counts and percentages by age group and gender
 pyramid_data <- df %>%
@@ -569,7 +569,7 @@ combined_choro_bar <-
 # )
 ```
 
-```{r geographic_distribution, fig.width=13, fig.height=6, out.width="100%", echo=FALSE}
+```{r geographic_distribution, fig.width=13, fig.height=6, out.width="100%", echo=F}
 # PURPOSE: Display the assembled geographic distribution visualization in the report.
 combined_choro_bar
 ```
@@ -584,7 +584,7 @@ Professional training characteristics were examined to describe the educational 
 
 ## Years Since Specialty Accreditation
 
-```{r yrs_practice, include=F}
+```{r yrs_practice, echo=F}
 # PURPOSE: Clean years-since-accreditation values and prepare the professional experience summary.
 # Prep data
 practice_df <- df %>% 
@@ -687,7 +687,7 @@ The vast majority of respondents — 30 of 41 with valid accreditation data (73.
 
 Table 2 summarizes professional qualifications, accreditation bodies, and periods of specialty accreditation among respondents. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
 
-```{r professional_table, include=F}
+```{r professional_table, echo=F}
 # PURPOSE: Compile professional training and experience measures into a presentation table.
 # Group specialty accreditation years
 training_df <- df %>% 
@@ -909,7 +909,7 @@ gt_training_table
 
 Consultant/Attending surgeons were the most common position, comprising 16 respondents (38.1%). Residents and trainees accounted for 15 respondents (35.7%), making trainees collectively the second largest group. Academic faculty and Fellows each accounted for 4 respondents (9.5% each), and Department heads/chairs for 3 (7.1%). Taken together, the high proportion of trainees and early-career consultants (38.1% + 35.7% = 73.8%) reinforces the predominantly junior profile identified in the age and accreditation data.
 
-```{r position_table, include=F}
+```{r position_table, echo=F}
 # PURPOSE: Summarize respondents’ clinical positions and institutional appointments.
 # Calculate frequencies and percentages
 valid_n <- sum(!is.na(df$position))
@@ -1024,7 +1024,7 @@ clean_subspecialty <- clean_subspecialty %>%
 
 ```
 
-```{r subspeciality_barplot, include=F}
+```{r subspeciality_barplot, echo=F}
 # PURPOSE: Compute subspecialty frequencies and build their categorical visualization.
 # Horizontal Bar Chart
 subspecialty_bar <- clean_subspecialty %>%
@@ -1114,7 +1114,7 @@ Survey respondents identified multiple healthcare facilities where they provided
 
 Respondents collectively identified 52 unique healthcare facilities across 12 countries. The University Teaching Hospital of Kigali (CHUK) was the most frequently reported facility, cited by 8 respondents, followed by ALERT Comprehensive Specialized Hospital in Ethiopia (5 respondents) and Yekatit 12 Hospital Medical College in Ethiopia (4 respondents). Rwanda Military Teaching and Referral Hospital was cited by 3 respondents; AIC Kijabe Hospital (Kenya), AaBET Hospital (Ethiopia), Felege Hiwot Hospital (Ethiopia), Mulago National Referral Hospital (Uganda), and Worabe Comprehensive Specialized Hospital (Ethiopia) were each cited by 2 respondents. The remaining 43 facilities were each cited by a single respondent.
 
-```{r subspecialty_summary_display}
+```{r subspecialty_summary_displa, include=F}
 # PURPOSE: Display the prepared subspecialty chart or summary in the report.
 # Create one record per unique facility
 facility_level_df <- facility_df %>%
@@ -1125,7 +1125,7 @@ facility_level_df <- facility_df %>%
   )
 ```
 
-```{r facility_table, include=F}
+```{r facility_table, echo=F}
 # PURPOSE: Prepare the descriptive summary of facilities and practice settings.
 # Build the facility characteristics table.
 # Reuse .build_section() from the respondent profile table.
@@ -2767,7 +2767,7 @@ equipment_country_data <- setNames(
 
 ## Availability: Surgeon-reported heatmap
 
-```{r infrastructure-respondent-heatmap, fig.height=7}
+```{r infrastructure-respondent-heatmap, echo=F}
 # PURPOSE: Show the infrastructure availability distribution based on respondent reports.
 infra_respondent_heatmap <- plot_availability_heatmap(
   infra_heatmap_data, "infrastructure", infrastructure_labels,
@@ -2780,7 +2780,7 @@ infra_respondent_heatmap
 
 ## Consistently Available Infrastructure
 
-```{r infrastructure-consistency-country, fig.height=7}
+```{r infrastructure-consistency-country, echo=F}
 # PURPOSE: Compare consistent infrastructure availability between represented countries.
 infra_consistency_bar <- infra_consistency_country %>%
   # Create or recode variables using the expressions below.
@@ -2854,7 +2854,7 @@ infra_country_heatmap_plot
 
 ## Critical Infrastructure Gaps
 
-```{r infrastructure-critical-gaps, fig.height=9}
+```{r infrastructure-critical-gaps, echo=F}
 # PURPOSE: Visualize the most significant reported infrastructure gaps.
 infra_gap_plot <- plot_infra_gap(
   infra_diverging_data,
@@ -2868,7 +2868,7 @@ infra_gap_plot
 
 ## Availability: Surgeon-reported heatmap
 
-```{r equipment-respondent-heatmap, fig.height=8}
+```{r equipment-respondent-heatmap, echo=F}
 # PURPOSE: Show equipment availability patterns reported by individual respondents.
 eq_respondent_heatmap <- plot_availability_heatmap(
   eq_heatmap_data, "equipment", equipment_labels,
@@ -2880,7 +2880,7 @@ eq_respondent_heatmap
 
 ## Facility-level Equipment: Essential vs. Specialized
 
-```{r equipment_overall_dotplot, fig.width=11, fig.height=9, echo=FALSE}
+```{r equipment_overall_dotplot, fig.width=11, fig.height=6, echo=FALSE}
 # PURPOSE: Plot equipment availability percentages for the selected items.
 # Create the overall equipment availability Cleveland dot plot.
 equipment_dotplot <- plot_equipment_dotplot(
@@ -2900,7 +2900,7 @@ equipment_dotplot
 
 ## Infrastructure at Facility Level
 
-```{r infrastructure-facility-heatmap, fig.height=8}
+```{r infrastructure-facility-heatmap, echo=F}
 # PURPOSE: Show infrastructure availability aggregated at the facility level.
 
 infra_facility_heatmap <- plot_availability_heatmap(
@@ -2914,7 +2914,7 @@ infra_facility_heatmap
 
 ## Equipment at Facility Level
 
-```{r equipment-facility-heatmap, fig.height=9}
+```{r equipment-facility-heatmap, echo=F}
 # PURPOSE: Show equipment availability aggregated at the facility level.
 
 equipment_facility_heatmap <- plot_availability_heatmap(
@@ -2931,7 +2931,7 @@ equipment_facility_heatmap
 
 ## Training Capacity at Facilities
 
-```{r training_facility_preparation}
+```{r training_facility_preparation, include=F}
 # PURPOSE: Clean training indicators and consolidate responses into facility-level training records.
 # SECTION 8 — TRAINING CAPACITY AND NEEDS
 
@@ -3141,7 +3141,7 @@ training_facility <- training_long %>%
 training_facility
 ```
 
-```{r training_capacity_summary}
+```{r training_capacity_summary, echo=F}
 # PURPOSE: Summarize training capacity across facilities and countries for reporting.
 # TRAINING CAPACITY AT FACILITIES
 # Overall and country-specific training capacity.
