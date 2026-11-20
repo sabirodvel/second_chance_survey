@@ -85,54 +85,45 @@ df <- read_rds(here("data/clean_data_20261112.rds"))
 facility_df <- read_rds(here("data/clean_merged_20261112.rds"))
 ```
 
-# Report Purpose
+# Report Purpose & Introduction
 
-This report presents preliminary descriptive findings from the 2nd Chance Survey, examining the demographic characteristics, professional training, geographic distribution, and clinical practice settings of plastic and reconstructive surgeons currently practicing in Sub-Saharan Africa (SSA). The analysis characterizes the surveyed workforce and identifies patterns in professional backgrounds, institutional affiliations, and geographic distribution that may inform further research and workforce planning in the region.
+## Report Purpose
 
-Findings reflect the participating respondents and the facilities they reported and should not be interpreted as representative of the entire plastic and reconstructive surgery workforce in SSA.
-
-# Introduction
+This report presents descriptive findings from the 2nd Chance Survey on the distribution and density of plastic and reconstructive surgery (PRS) specialists in Sub-Saharan Africa (SSA). It characterizes the demographic composition, professional training, geographic distribution, and clinical practice settings of the surveyed workforce, and describes the availability of facility infrastructure, equipment, and training resources. Findings reflect the participating respondents and the facilities they reported, and should not be interpreted as representative of the entire PRS workforce in SSA.
 
 ## Background
 
-Access to plastic and reconstructive surgery (PRS) remains limited across Sub-Saharan Africa (SSA), despite a substantial burden of trauma, burns, and congenital malformations. Limited specialist availability, uneven workforce distribution, and resource constraints further restrict access to essential reconstructive services. Although surgical workforce assessments have been conducted across the region, comprehensive data on the distribution, practice characteristics, and facility capacity of PRS specialists remain scarce. This information is essential to identify service gaps and inform workforce development and surgical system strengthening.
+Access to plastic and reconstructive surgery remains severely limited across Sub-Saharan Africa, despite a substantial burden of trauma, burns, and congenital malformations. Limited specialist availability, uneven geographic distribution, and resource constraints further restrict access to essential reconstructive services. Although surgical workforce assessments have been conducted across the region, comprehensive data on the distribution, practice characteristics, and facility capacity of PRS specialists remain scarce. This information is essential to identify service gaps and to inform workforce development and surgical system strengthening.
 
 ## Objective
 
-This study aimed to assess the geographic distribution, workforce density, and service delivery capacity of accredited plastic and reconstructive surgeons across SSA. Specifically, it sought to characterize surgeons' practice settings, surgical workload, and the availability of infrastructure, equipment, supplies, and training resources at participating facilities. Methodology
+This study aimed to assess the geographic distribution, workforce density, and service delivery capacity of accredited plastic and reconstructive surgeons across SSA. Specifically, it sought to characterize surgeons' practice settings, surgical workload, and the availability of infrastructure, equipment, supplies, and training resources at participating facilities.
 
-A cross-sectional, multi-country survey was designed to assess PRS workforce and facility capacity across SSA, particularly in countries affiliated with the College of Surgeons of East, Central and Southern Africa (COSECSA) and the West African College of Surgeons (WACS).
+## Methodology
 
-A purposive census sampling approach, supplemented by snowball sampling, was used to identify eligible accredited plastic and reconstructive surgeons through professional associations, training institutions, hospitals, and professional networks. Data were collected electronically using a structured questionnaire administered through KoboToolbox. The survey assessed demographic and professional characteristics, geographic distribution, practice settings, surgical workload, facility resources, and training capacity.
-
-Survey responses were de-identified and prepared for analysis using R. Descriptive statistics were used to summarize workforce characteristics and facility capacity. Geographic mapping was used to assess workforce distribution, and surgeon density was calculated per 100,000 population using publicly available population estimates.
+A cross-sectional, multi-country survey was designed to assess PRS workforce and facility capacity across SSA, with particular focus on countries affiliated with the College of Surgeons of East, Central and Southern Africa (COSECSA) and the West African College of Surgeons (WACS). A purposive census sampling approach, supplemented by snowball sampling, was used to identify eligible accredited surgeons through professional associations, training institutions, hospitals, and professional networks. Data were collected electronically using a structured questionnaire administered through KoboToolbox, covering demographic and professional characteristics, geographic distribution, practice settings, surgical workload, facility resources, and training capacity. Survey responses were de-identified and analyzed in R using descriptive statistics. Surgeon density was calculated per 100,000 population using publicly available population estimates.
 
 ## Ethical Considerations
 
-Ethical approval was obtained from the BASEC and CUREG ethics review bodies in Switzerland and the College of Surgeons of East, Central and Southern Africa (COSECSA) Institutional Review Board (IRB) prior to study commencement. Participation was voluntary, and electronic informed consent was obtained before survey completion. The study collected no patient-level information. All survey responses were de-identified and securely stored, with access restricted to authorized research personnel. Findings were reported in aggregate to protect participant and institutional confidentiality.
+Ethical approval was obtained from the BASEC and CUREG ethics review bodies in Switzerland and the COSECSA Institutional Review Board (IRB) prior to study commencement. Participation was voluntary and electronic informed consent was obtained before survey completion. The study collected no patient-level information. All survey responses were de-identified and securely stored, with access restricted to authorized research personnel. Findings are reported in aggregate to protect participant and institutional confidentiality.
 
 # Response Rate and Data Completeness
 
-Potential participants were identified through three complementary sources. The COSECSA Entire Surgeon Membership List (n = 1,655) and the COSECSA Plastic Reconstructive Surgeon Fellow List (n = 129) constituted the COSECSA stream. The 2nd Chance Professional Network (n = 57) and 2nd Chance COSECSA Conference Attendance list (n = 40) were merged into a combined list of 97 individuals. Online searches of published literature and other sources identified a further 35 individuals. After deduplication — 33 duplicates from the 2nd Chance stream and 3 from online sources (36 total removed) — these streams yielded 225 unique potential participants (THIS NUMBER IS YET TO BE CONFIRMED WITH COSECSA).
+Potential participants were identified through three complementary recruitment streams. The COSECSA stream combined the Entire Surgeon Membership List (n = 1,655) and the COSECSA Plastic Reconstructive Surgeon Fellow List (n = 129), yielding 1,794 entries before deduplication. The 2nd Chance stream merged the 2nd Chance Professional Network (n = 57) and the 2nd Chance COSECSA Conference Attendance list (n = 40) into a combined list of 97 individuals. Online searches of published literature and other sources identified a further 36 individuals. After removing 142 duplicates — 105 from the PRS list already on the entire membership list, 33 from the 2nd Chance stream already on COSECSA lists, 3 from online sources already on COSECSA lists, and 1 from online sources also in the 2nd Chance stream — the three streams yielded 1,643 unique contacts (note: the total unique contacts prior to deduplication was 1,785; the number of unique eligible PRS contacts identified through targeted channels is 234). The COSECSA-specific numbers are yet to be confirmed with COSECSA.
 
-Of the 51 individuals who accessed the survey, 9 were excluded: 1 declined informed consent and 8 were not currently practicing in SSA, leaving 42 eligible participants (82.4% of those who accessed the survey). The response rate relative to the deduplicated pool was 18.7% (42/225).
+Of the 51 individuals who accessed the survey, 9 were excluded: 1 declined informed consent and 8 were not currently practising in SSA, leaving 42 eligible participants (82.4% of those who accessed the survey). The overall response rate relative to the unique contacts pool was 2.3% (42/1,643), with a response rate of 18.0% (42/234) among contacts identified through PRS-targeted channels.
 
 ![Figure 1. Participant identification and inclusion flowdiagram. Numbers highlighted in red are to be confirmed with COSECSA](../images/2nd_chance_survey_diagram.png)
 
-
-During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, implying 76 years since accreditation — inconsistent with the reported age and not reliably correctable. Both the accreditation year and the derived years-in-practice variable were treated as missing for this individual, who was retained in all other analyses for which valid data were available.
-
-Analyses involving accreditation year therefore have a denominator of N = 41.
+During data cleaning, one respondent aged 50–59 years reported a specialty accreditation year of 1950, implying 76 years since accreditation — inconsistent with the reported age and not reliably correctable. Both the accreditation year and the derived years-in-practice variable were treated as missing for this individual, who was retained in all other analyses for which valid data were available. Analyses involving accreditation year therefore have a denominator of N = 41. Analyses involving accreditation year therefore have a denominator of N = 41.
 
 # Respondent Characteristics
 
 ## Age and Gender
 
-The demographic composition of survey respondents was examined according to age group and gender. Together, these characteristics provide an overview of the age and gender representation within the participating surgical workforce.
-
-### Participant Characteristics
-
 Table 1 summarizes respondents' demographic characteristics and countries of practice. Age, gender, and geographic distributions are reported as frequencies and percentages, with denominators based on available responses for each characteristic.
+
+The participating workforce was predominantly young: the 30–39 age group was the largest, comprising 25 respondents (59.5%), followed by the 40–49 group (n = 6; 14.3%) and the 50–59 group (n = 5; 11.9%). Four respondents (9.5%) were under 30 years of age, and 2 (4.8%) were older than 59. 
 
 ```{r participant_profile_summary, echo=F}
 # PURPOSE: Define reusable functions for respondent frequency/percentage summaries and the formatted demographic profile table.
@@ -289,9 +280,7 @@ gt_participant_table
 #gtsave(gt_table, here("images/gt_participants_characteristics.png"))
 ```
 
-### Age and Gender Distribution
-
-The combined age and gender distribution is presented in Figure 3. This analysis examines how age groups are represented among male and female respondents, providing additional insight into the demographic composition of participating surgeons.
+Male respondents outnumbered female respondents (28 [66.7%] vs 14 [33.3%]). The demographic pyramid in Figure 2 illustrates how this age and gender profile is distributed across the sample; the concentration in the 30–39 group is consistent among both male and female respondents and reinforces the predominantly early-career composition of the surveyed workforce.
 
 ```{r demo_pyramid, echo=F}
 # PURPOSE: Prepare and plot the age-by-gender demographic profile.
@@ -374,7 +363,7 @@ demographic_pyramid
 
 ## Country of Practice
 
-The table below summarizes the geographic distribution of reported countries of practice among respondents, including the frequency and percentage of each country. As respondents could practice in multiple countries, percentages are based on the total number of country mentions.
+Respondents reported practising plastic surgery across multiple countries in Sub-Saharan Africa, with Ethiopia accounting for the largest share of reported practice locations (n = 14; 33.3%), followed by Rwanda (n = 9; 21.4%), Kenya (n = 4; 9.5%), Uganda (n = 4; 9.5%), the Democratic Republic of the Congo (n = 2; 4.8%), Nigeria (n = 2; 4.8%), and Tanzania (n = 2; 4.8%). A further six countries — Burundi, Côte d'Ivoire, Malawi, Somalia, and Togo — each contributed one mention. As respondents could report practising in more than one country, these figures represent the distribution of reported practice locations rather than the proportion of unique respondents. The geographic distribution was strongly concentrated in East Africa, with Ethiopia and Rwanda together accounting for more than half of all country mentions. This concentration likely reflects the geographic reach of the COSECSA recruitment network and should not be interpreted as representative of the overall PRS workforce distribution across SSA. Figure 3 presents the geographic distribution mapped across the continent.
 
 ```{r prep_country_practice, include=F}
 # PURPOSE: Aggregate countries of practice into totals and prepare country labels for plotting.
@@ -574,15 +563,13 @@ combined_choro_bar <-
 combined_choro_bar
 ```
 
-Respondents reported practicing plastic surgery across multiple countries in sub-Saharan Africa (SSA). Ethiopia accounted for the largest proportion of reported countries of practice, with 13 mentions (30.2%), followed by Rwanda with 9 (20.9%), Uganda with 5 (11.6%), and Kenya with 4 (9.3%). Malawi contributed 2 mentions (4.7%). Together, these five countries accounted for 33 of the 43 reported country mentions (76.7%).
-
-The geographic distribution of reported practice locations was concentrated in East Africa, with Ethiopia and Rwanda alone accounting for 51.2% of all country mentions. Because respondents could report practicing in more than one country, these percentages represent the distribution of reported practice locations rather than the proportion of unique respondents. This concentration may reflect the geographic reach of survey recruitment networks, particularly COSECSA, and should not be interpreted as representative of the overall distribution of plastic surgeons or surgical capacity across SSA.
-
 # Professional Training
 
 Professional training characteristics were examined to describe the educational qualifications, accreditation pathways, years since specialty accreditation, and current professional positions of participating surgeons.
 
 ## Years Since Specialty Accreditation
+
+The vast majority of respondents — 30 of the 41 with valid accreditation data (73.2%) — received their specialty accreditation in 2020 or later, confirming the early-career profile of the sample. A further 5 respondents (12.2%) were accredited between 2010 and 2019, and 6 (14.6%) between 2000 and 2009. No respondents reported accreditation before 2000 (the anomalous 1950 value was excluded as described in the data completeness section above). The distribution of years since accreditation is displayed in Figure 4; the red dashed line marks the median, which falls within the first three years post-accreditation, underscoring the junior composition of the workforce.
 
 ```{r yrs_practice, echo=F}
 # PURPOSE: Clean years-since-accreditation values and prepare the professional experience summary.
@@ -681,11 +668,9 @@ yrs_practice
 #                        height = 10, width = 13, bg = "white")
 ```
 
-The vast majority of respondents — 30 of 41 with valid accreditation data (73.2%) — received specialty accreditation in 2020 or later, confirming the early-career profile of the sample. A further 5 respondents (12.2%) were accredited between 2010 and 2019, and 6 (14.6%) between 2000 and 2009. No respondents reported accreditation before 2000 (the one anomalous 1950 value was excluded as described in the data completeness section).
-
 ## Professional Training Background
 
-Table 2 summarizes professional qualifications, accreditation bodies, and periods of specialty accreditation among respondents. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
+Table 2 summarizes respondents' professional qualifications, primary accreditation bodies, and periods of specialty accreditation. These findings characterize the training backgrounds and accreditation histories represented within the surveyed workforce.
 
 ```{r professional_table, echo=F}
 # PURPOSE: Compile professional training and experience measures into a presentation table.
@@ -907,7 +892,7 @@ gt_training_table
 
 ## Current Professional Position
 
-Consultant/Attending surgeons were the most common position, comprising 16 respondents (38.1%). Residents and trainees accounted for 15 respondents (35.7%), making trainees collectively the second largest group. Academic faculty and Fellows each accounted for 4 respondents (9.5% each), and Department heads/chairs for 3 (7.1%). Taken together, the high proportion of trainees and early-career consultants (38.1% + 35.7% = 73.8%) reinforces the predominantly junior profile identified in the age and accreditation data.
+Consultant/Attending surgeons were the most common professional position, comprising 16 respondents (38.1%). Residents and trainees accounted for 15 respondents (35.7%), making trainees collectively the second largest group. Academic faculty and Fellows each accounted for 4 respondents (9.5% each), and Department heads/chairs for 3 (7.1%). The high proportion of trainees and early-career consultants (73.8% combined) is consistent with the age and accreditation data and indicates that the surveyed workforce is predominantly junior-to-mid-career.
 
 ```{r position_table, echo=F}
 # PURPOSE: Summarize respondents’ clinical positions and institutional appointments.
@@ -991,7 +976,7 @@ gt_position_table
 
 ## Subspecialty
 
-Respondents could select multiple subspecialties. Reported subspecialties spanned the breadth of plastic and reconstructive surgery, including burn surgery, hand surgery, craniofacial and cleft surgery, microsurgery, aesthetic surgery, and general reconstructive surgery, among others. Because respondents could identify with more than one area, percentages are not expected to total 100% and are reported by subspecialty in the accompanying figures.
+Respondents could select multiple subspecialties. Reported areas of practice spanned the breadth of plastic and reconstructive surgery, including burn surgery, hand surgery, craniofacial and cleft surgery, microsurgery, aesthetic surgery, and general reconstructive surgery, among others. Because respondents could identify with more than one subspecialty, percentages are not expected to total 100% and are reported by subspecialty in Figure 5. The diversity of subspecialties reported — including both high-volume reconstructive areas such as burns and trauma and lower-volume disciplines such as microsurgery and oncoplastics — reflects the breadth of clinical demands facing the PRS workforce in the region.
 
 ```{r factorize_subspecialty, include=F}
 # PURPOSE: Standardize subspecialty categories and their ordering for summaries.
@@ -1104,15 +1089,11 @@ subspecialty_bar
 
 # Practice Settings
 
-Clinical practice settings were examined to characterize the institutions where respondents reported providing surgical services. The analysis considers facility characteristics, institutional ownership, geographic location, and the number of facilities associated with individual surgeons.
-
-Because individual surgeons may practice at multiple institutions and multiple respondents may report the same facility, facility-level and respondent-level findings are presented separately.
+Clinical practice settings were examined to characterize the institutions where respondents reported providing surgical services. Because individual surgeons may practise at multiple institutions and multiple respondents may report the same facility, facility-level and respondent-level findings are presented separately throughout this section.
 
 ## Facilities Reported by Respondents
 
-Survey respondents identified multiple healthcare facilities where they provided clinical services. The frequency with which each facility was reported is summarized in Table 4.
-
-Respondents collectively identified 52 unique healthcare facilities across 12 countries. The University Teaching Hospital of Kigali (CHUK) was the most frequently reported facility, cited by 8 respondents, followed by ALERT Comprehensive Specialized Hospital in Ethiopia (5 respondents) and Yekatit 12 Hospital Medical College in Ethiopia (4 respondents). Rwanda Military Teaching and Referral Hospital was cited by 3 respondents; AIC Kijabe Hospital (Kenya), AaBET Hospital (Ethiopia), Felege Hiwot Hospital (Ethiopia), Mulago National Referral Hospital (Uganda), and Worabe Comprehensive Specialized Hospital (Ethiopia) were each cited by 2 respondents. The remaining 43 facilities were each cited by a single respondent.
+Respondents collectively identified 52 unique healthcare facilities across 12 countries. The University Teaching Hospital of Kigali (CHUK) was the most frequently cited facility, reported by 8 respondents, followed by ALERT Comprehensive Specialized Hospital in Ethiopia (5 respondents) and Yekatit 12 Hospital Medical College, also in Ethiopia (4 respondents). Rwanda Military Teaching and Referral Hospital was cited by 3 respondents; AIC Kijabe Hospital (Kenya), AaBET Hospital, Felege Hiwot Hospital, and Worabe Comprehensive Specialized Hospital (Ethiopia), and Mulago National Referral Hospital (Uganda) were each cited by 2 respondents. The remaining 43 facilities were each cited by a single respondent. The concentration of citations in a small number of institutions — particularly in Ethiopia and Rwanda — reflects both the geographic distribution of the workforce and the recruitment footprint of the COSECSA network.
 
 ```{r subspecialty_summary_displa, include=F}
 # PURPOSE: Display the prepared subspecialty chart or summary in the report.
@@ -1280,9 +1261,7 @@ gt_facility_table
 
 ## Facility Characteristics
 
-Reported healthcare facilities differed in geographic setting, institutional level, and ownership structure.
-
-Table 5 summarizes the distribution of unique reported facilities across urban and rural settings, healthcare facility levels, and ownership categories. These characteristics provide context for understanding the institutional environments in which participating surgeons practice.
+Table 5 summarizes the distribution of the 52 unique facilities across geographic setting, facility level, and ownership type. The majority of facilities were located in urban areas (n = 45; 86.5%), with only 7 (13.5%) in rural settings. Facilities were broadly distributed across administrative levels: central, provincial, and university hospitals each accounted for 11 facilities (21.2% each), followed by district hospitals (n = 9; 17.3%) and central university hospitals (n = 7; 13.5%). In terms of ownership, public facilities were the most common (n = 18; 34.6%), followed closely by private facilities (n = 17; 32.7%). Quasi-governmental, NGO, and mission facilities accounted for a further 14 facilities combined. The mix of public, private, and faith-based institutions suggests that PRS services in the region are delivered across a heterogeneous set of institutional environments.
 
 ```{r facility_type_summary_setup, include=F}
 # PURPOSE: Prepare supplementary facility-level indicators for the next table.
@@ -1453,15 +1432,7 @@ gt_table
 
 ## Multiple Facilities
 
-Survey respondents reported different patterns of institutional affiliation, including practice at a single facility and practice across multiple facilities.
-
-The proportion of respondents reporting employment or clinical activity at more than one facility is presented in Figure 12.
-
-### Number of Operating Facilities
-
-The distribution of the number of facilities associated with individual respondents is presented in Figure 13.
-
-These results describe the extent to which participating surgeons practice across multiple healthcare institutions and provide additional context for interpreting facility-level reporting within the survey.
+A notable proportion of respondents reported practising at more than one facility. Among the 42 respondents, 19 (45.2%) reported working at a single institution, while 16 (38.1%) reported two facilities, 5 (11.9%) reported three, and 2 (4.8%) reported four. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses.
 
 ```{r facility_practice_summary, echo=F}
 # PURPOSE: Calculate and display additional indicators of reported practice settings.
@@ -1492,17 +1463,15 @@ gt_num_facilities <- make_profile_table_gt(
 gt_num_facilities
 ```
 
-A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses.
-
 # Workforce Profile
 
-A proportion of respondents reported practicing at more than one facility. The number of facilities per respondent is detailed in the accompanying figures. Practice across multiple institutions increases the aggregate service reach of individual surgeons but may also reflect fragmented or cross-subsidised service delivery — a pattern worth exploring in subsequent analyses. Workforce Profile and Staffing Respondents provided staffing estimates — plastic and reconstructive surgeons (PRS), PRS trainees, operating theatre (OT) nurses, and physiotherapists — for each of their reported facilities. Where multiple respondents reported the same facility, values are presented as median (minimum–maximum) to account for variation in individual estimates; single-respondent facilities report the value directly.
+Respondents provided staffing estimates — plastic and reconstructive surgeons (PRS), PRS trainees, operating theatre (OT) nurses, and physiotherapists — for each of their reported facilities. Where multiple respondents reported the same facility, values are presented as median (minimum–maximum) to account for variation between individual estimates; single-respondent facilities report the value directly. Staffing counts were not independently verified and represent self-reported estimates.
 
 ## Staffing Numbers per Facility
 
-Staffing numbers varied substantially across facilities and countries. Among the most heavily staffed facilities: - Saint Paul's Hospital Millennium Medical College (Ethiopia): 10 PRS surgeons, 17 PRS trainees, 20 OT nurses, 3 physiotherapists — the largest reported PRS surgeon count across all facilities. - Kenyatta National Hospital (Kenya): 5 PRS surgeons, 25 PRS trainees, 15 OT nurses, 4 physiotherapists — notable for the high trainee-to-surgeon ratio of 5:1. - King Faisal Hospital (Rwanda): 2 PRS surgeons, 25 PRS trainees, 10 OT nurses, 2 physiotherapists — the highest reported trainee count of any single facility. - ALERT Comprehensive Specialized Hospital (Ethiopia): median 8 PRS surgeons (range 7–9), 13 trainees (10–26), 24 OT nurses (16–30), 6 physiotherapists (5–10), based on 5 respondents. - Yekatit 12 Hospital Medical College (Ethiopia): median 5 PRS surgeons (5–7), 23 trainees (13–30), 12.5 OT nurses (10–15), 4.5 physiotherapists (3–6), based on 4 respondents. - University Teaching Hospital of Kigali — CHUK (Rwanda): median 1 PRS surgeon (1–4), 12.5 trainees (5–25), 3 OT nurses (2–10), 1 physiotherapist (0–2), based on 8 respondents — the most-reported facility, but with a notably low median PRS surgeon count.
+Staffing numbers varied substantially across facilities and countries. Table 6 presents facility-level workforce estimates grouped by country. Among the most heavily staffed facilities, Saint Paul's Hospital Millennium Medical College in Ethiopia reported the largest PRS surgeon count (10 surgeons, 17 trainees, 20 OT nurses, 3 physiotherapists). Kenyatta National Hospital in Kenya reported a notably high trainee-to-surgeon ratio of 5:1 (5 surgeons, 25 trainees, 15 OT nurses, 4 physiotherapists). King Faisal Hospital in Rwanda reported the highest trainee count of any single facility (2 surgeons, 25 trainees, 10 OT nurses, 2 physiotherapists). Facilities with multiple respondents showed broad within-facility variation in staffing estimates: at ALERT Comprehensive Specialized Hospital in Ethiopia, the median number of reported PRS surgeons was 8 (range 7–9), with 13 trainees (10–26), 24 OT nurses (16–30), and 6 physiotherapists (5–10). The University Teaching Hospital of Kigali (CHUK), the most frequently cited facility with 8 reporting respondents, had a notably low median PRS surgeon count of 1 (range 1–4) alongside a median of 12.5 trainees (range 5–25), suggesting that training activity may outpace the available specialist workforce at this institution.
 
-Several facilities — including Nkinga Referral Hospital (Tanzania), Kalembelembe Pediatric Hospital (DR Congo), CHR Notsé (Togo), and Kalkaal Hospital (Somalia) — reported zero PRS surgeons, with either trainees only or minimal allied health support, suggesting severely limited specialist capacity. Staffing counts were not independently verified and represent self-reported estimates.
+Several facilities — including Nkinga Referral Hospital (Tanzania), Kalembelembe Pediatric Hospital (DR Congo), CHR Notsé (Togo), and Kalkaal Hospital (Somalia) — reported zero PRS surgeons, with only trainees or minimal allied health support, indicating severely limited specialist capacity. These findings highlight substantial heterogeneity in PRS workforce depth across the region, even within countries with a relatively larger respondent presence.
 
 ```{r facility_distribution_summary}
 # PURPOSE: Summarize distribution of facilities by the relevant categories.
@@ -1603,6 +1572,10 @@ facility_staffing %>%
 # Service Delivery
 
 ## Scope of Procedures Performed
+
+Figure 6 displays the distribution of surgeon-reported procedural frequency across 18 PRS procedures, ordered from most to least routinely performed. Wound debridement was the most universally performed procedure, reported as routinely performed by 97.6% of respondents. Split-thickness skin grafting (95.2%), full-thickness skin grafting (90.5%), burn reconstruction (88.1%), and local/pedicled flaps (76.2%) were also routinely performed by large majorities, confirming that wound management and burn care procedures form the core of clinical activity across the surveyed workforce. Burn excision (73.8%), contracture release (71.4%), and tendon repair (71.4%) were likewise routinely performed by a majority of respondents.
+
+In contrast, cosmetic surgery was the procedure least routinely performed, with only 4.8% of respondents reporting it routinely and 19.0% reporting it not performed at all. Microvascular surgery was rarely or not performed by the majority of respondents (42.9% rarely, 19.0% not performed), and breast reconstruction showed a similar pattern (35.7% rarely, 7.1% not performed). Craniofacial reconstruction was performed occasionally by 42.9% of respondents. Skin substitute application was most commonly not performed (50.0%), highlighting a critical gap in advanced wound management capacity. These patterns are broadly consistent with the epidemiological profile of reconstructive surgical need in SSA, where trauma, burns, and congenital conditions dominate clinical demand, while advanced reconstructive and aesthetic procedures remain less accessible.
 
 ```{r heatmap, include=F}
 # PURPOSE: Prepare data inputs and labels for the facility heatmap.
@@ -1777,6 +1750,8 @@ ggplot(heatmap_data, aes(x = frequency, y = procedure, fill = percent)) +
 ```
 
 ## Workload
+
+Figure 7 presents the most commonly selected top-three reconstructive workload categories reported by surgeons (N = 42). Burns and acute trauma were the leading workload categories, each selected by 66.7% of respondents (n = 28). Hand surgery ranked third, cited by 50.0% (n = 21), followed by scar revision (35.7%; n = 15) and cleft conditions (26.2%; n = 11). Cancer-related reconstruction was selected by 11.9% of respondents (n = 5). Breast reconstruction, aesthetic surgery, and other categories each accounted for fewer than 3% of selections. The dominance of burns, trauma, and hand surgery aligns closely with the high procedural frequency of wound debridement, skin grafting, and tendon repair observed in the procedures data, and is consistent with the broader epidemiological burden of acute acquired conditions documented across SSA.
 
 ```{r prepare_workload, include=F}
 # PURPOSE: Clean and organize respondents’ surgical workload responses.
@@ -2765,7 +2740,9 @@ equipment_country_data <- setNames(
 
 # Infrastructure
 
-## Availability: Surgeon-reported heatmap
+## Availability: Surgeon-reported Heatmap
+
+Figure 8 presents the surgeon-reported availability of 14 infrastructure items across the 42 respondents, categorized as consistently available, intermittently available, or not available. X-ray was the most consistently available item (97.6%), followed by oxygen supply and ultrasound (both 90.5%), electricity (85.7%), and dedicated operating room time for PRS and running water (both 83.3%). Blood bank and physiotherapy services were consistently available to 81.0% of respondents, and CT scanner to 76.2%. Histopathology services were consistently available to 66.7% of respondents, though intermittently available to a further 21.4%. Intensive care unit access showed more variability, with 52.4% reporting consistent availability and 40.5% intermittent availability. Occupational therapy services, temperature-controlled operating rooms, and patient warming devices were the least consistently available items, with consistent availability reported by only 45.2%, 45.2%, and 40.5% of respondents respectively.
 
 ```{r infrastructure-respondent-heatmap, echo=F}
 # PURPOSE: Show the infrastructure availability distribution based on respondent reports.
@@ -2779,6 +2756,8 @@ infra_respondent_heatmap
 ```
 
 ## Consistently Available Infrastructure
+
+Figure 9 presents the mean percentage of assessed infrastructure items consistently available at complete facilities, disaggregated by country. Rwanda reported the highest mean consistent availability across assessed items (96.4%), followed by Kenya and Togo (both 85.7%) and Uganda (78.6%). Nigeria (75.0%), Tanzania (71.4%), and Somalia (71.4%) fell in the mid-range. Ethiopia, which contributed the highest number of facilities to the survey (n = 6 complete facilities), reported a mean consistent availability of 64.3%. The lowest values were observed in Côte d'Ivoire (57.1%), Malawi (53.6%), DR Congo (35.7%), and Burundi (21.4%), though these figures should be interpreted with caution given the small number of facilities assessed in each country.
 
 ```{r infrastructure-consistency-country, echo=F}
 # PURPOSE: Compare consistent infrastructure availability between represented countries.
@@ -2810,6 +2789,8 @@ infra_consistency_bar
 ```
 
 ## Heatmap by Country and Infrastructure
+
+The country-by-infrastructure heatmap in Figure 10 provides additional granularity on item-level availability across the 12 countries represented.
 
 ```{r infrastructure-country-heatmap, fig.width=13, fig.height=9}
 # PURPOSE: Display cross-country infrastructure patterns in a heatmap.
@@ -2854,6 +2835,8 @@ infra_country_heatmap_plot
 
 ## Critical Infrastructure Gaps
 
+Figure 11 displays consistently available versus unavailable infrastructure at the facility level across the 28 facilities with complete data. Among the 14 assessed items, X-ray had no reported unavailability (0%) and was consistently available in 96.4% of facilities. Items with zero reported unavailability and high consistent availability included running water (consistently available 82.1%), electricity (85.7%), oxygen supply (89.3%), and dedicated OR time for PRS (81.5%). By contrast, the items with the highest rates of unavailability were patient warming devices (unavailable at 32.0% of facilities, consistently available at only 40.0%), occupational therapy services (unavailable at 30.8%, consistently available at 46.2%), histopathology services (unavailable at 17.9%), and temperature-controlled operating rooms (unavailable at 14.8%). ICU access was absent in 11.5% of facilities. These gaps are particularly consequential for the management of critically ill burn and trauma patients, for whom ICU access, temperature control, and histopathology are integral to safe perioperative care.
+
 ```{r infrastructure-critical-gaps, echo=F}
 # PURPOSE: Visualize the most significant reported infrastructure gaps.
 infra_gap_plot <- plot_infra_gap(
@@ -2866,7 +2849,11 @@ infra_gap_plot
 
 # Equipment
 
-## Availability: Surgeon-reported heatmap
+## Availability: Surgeon-reported Heatmap
+
+Figure 12 presents the surgeon-reported consistent availability of 18 equipment items across the 42 respondents. Urinary catheters and pulse oximeters were consistently available to all respondents (100.0%), followed by IV fluids (97.6%), functional anesthesia machines and sterilization equipment (both 95.2%), and mechanical ventilators (83.3%). Fine monofilament sutures were consistently available to 81.0% of respondents, and dermatome/Humby knives to 78.6%. Tourniquets and electrosurgical units were consistently available to approximately 71% of respondents, while burn dressings and skin meshers were consistently available to 69.0% and 66.7% respectively.
+
+In contrast, the most consistently unavailable items were skin substitutes (not available to 66.7%), operating microscopes (not available to 57.1%), and negative pressure wound therapy/VAC devices (not available to 40.5%). Microsurgical instruments were unavailable to 40.5% of respondents, and surgical loupes to 16.7%. These findings indicate a clear gap between essential anaesthetic and perioperative supplies — which are broadly available — and advanced or PRS-specific equipment required for complex reconstructive procedures.
 
 ```{r equipment-respondent-heatmap, echo=F}
 # PURPOSE: Show equipment availability patterns reported by individual respondents.
@@ -2879,6 +2866,12 @@ eq_respondent_heatmap
 ```
 
 ## Facility-level Equipment: Essential vs. Specialized
+
+Figure 13 presents consistent equipment availability at the facility level (N = 28), stratified by equipment category: Essential, PRS-specific, and Advanced. Essential items showed the highest levels of consistent availability: pulse oximeters and urinary catheters were available at 100% of facilities, IV fluids and functional anesthesia machines at 96.4%, and sterilization equipment at 92.9%. Fine monofilament sutures were consistently available at 81.5% of facilities.
+
+Among PRS-specific items, the dermatome/Humby knife — a core tool for split-thickness skin grafting — was consistently available at 84.6% of facilities. Skin meshers and surgical loupes showed lower availability at 63.0% and 44.0% of facilities respectively. Microsurgical instruments, essential for free-flap and replantation procedures, were consistently available at only 22.2% of facilities.
+
+Advanced items showed the greatest gaps: the mechanical ventilator, while classified as advanced in this framework, was available at 82.1% of facilities, likely reflecting its role in routine anaesthesia care. Negative pressure wound therapy (VAC) was consistently available at only 22.2% of facilities, the operating microscope at 14.3%, and skin substitutes at just 3.7%. Taken together, these findings indicate that while essential perioperative equipment is reasonably well distributed, specialized reconstructive and advanced surgical equipment remains critically scarce across the surveyed facilities.
 
 ```{r equipment_overall_dotplot, fig.width=11, fig.height=6, echo=FALSE}
 # PURPOSE: Plot equipment availability percentages for the selected items.
@@ -2896,40 +2889,15 @@ equipment_dotplot <- plot_equipment_dotplot(
 equipment_dotplot
 ```
 
-# FACILITY-LEVEL AVAILABILITY HEATMAPS
-
-## Infrastructure at Facility Level
-
-```{r infrastructure-facility-heatmap, echo=F}
-# PURPOSE: Show infrastructure availability aggregated at the facility level.
-
-infra_facility_heatmap <- plot_availability_heatmap(
-  infra_facility_heatmap_data, "item", infrastructure_labels,
-  "Infrastructure Availability Across Facilities",
-  "Based on most commonly reported surgeon response per facility/item",
-  "Facilities")
-
-infra_facility_heatmap
-```
-
-## Equipment at Facility Level
-
-```{r equipment-facility-heatmap, echo=F}
-# PURPOSE: Show equipment availability aggregated at the facility level.
-
-equipment_facility_heatmap <- plot_availability_heatmap(
-  eq_facility_heatmap_data, "item", equipment_labels,
-  "Equipment Availability Across Facilities",
-  "Based on most commonly reported surgeon response per facility/item",
-  "Facilities"
-)
-
-equipment_facility_heatmap
-```
-
 # Training
 
 ## Training Capacity at Facilities
+
+Table 7 summarizes training capacity across the 28 facilities with complete data, overall and by country. Across all facilities, 17 (63.0%) offered continuing professional development (CPD) opportunities and 17 (60.7%) trained PRS residents or fellows. Fifteen facilities (57.7%) hosted visiting outreach teams. Taken together, these figures suggest that more than half of surveyed facilities have an established role in workforce development, though a substantial minority (37.0–42.3%) reported none of these training activities.
+
+Country-level variation in training capacity was considerable. All three assessed Kenyan facilities (100.0%) offered CPD opportunities and trained PRS residents or fellows. Both Nigerian and Rwandan facilities with complete data similarly reported 100% CPD availability and resident training. By contrast, facilities in Burundi (N = 1), DR Congo (N = 1), and Somalia (N = 1) reported no CPD, no outreach hosting, and no resident training, suggesting minimal formal training infrastructure. Ethiopia (N = 8 facilities), which contributed the largest number of facilities, showed mixed training capacity: 57.1% offered CPD, 71.4% hosted outreach teams, and 50.0% trained residents or fellows. Malawi showed moderate CPD (0.0%) and resident training (50.0%), with one of two facilities hosting outreach.
+
+The concentration of training activity in a small number of well-resourced facilities — particularly teaching hospitals in Ethiopia, Kenya, and Rwanda — underscores both the importance of these institutions as regional training hubs and the uneven distribution of capacity-building infrastructure across the broader SSA context. Strengthening training capacity at district and provincial facilities, particularly in countries with minimal current activity, will be essential to expanding the PRS workforce pipeline across the region.
 
 ```{r training_facility_preparation, include=F}
 # PURPOSE: Clean training indicators and consolidate responses into facility-level training records.
@@ -3323,5 +3291,133 @@ gt_training_capacity <- training_table_data %>%
 
 # 6. Display the training capacity table.
 gt_training_capacity
+
+```
+
+## Training Needs
+
+```{r import_training_theme, include=F}
+# Load training theme counts
+
+training_theme_count <- read_rds(here("data/training_theme_count.rds"))
+```
+
+```{r training_need_count, include=F}
+# TRAINING NEEDS REPORTED
+# Prepare surgeon-level responses
+training_needs_data <- df %>%
+  mutate(
+    respondent_row = row_number(),
+
+    training_needs = str_to_lower(
+      str_squish(as.character(training_needs))
+    ),
+
+    training_needs = na_if(training_needs, "")
+  )
+
+# Count valid Q37 responses
+training_needs_summary <- training_needs_data %>%
+  filter(training_needs %in% c("yes", "no")) %>%
+  count(training_needs, name = "n") %>%
+  complete(
+    training_needs = c("yes", "no"),
+    fill = list(n = 0)
+  ) %>%
+  mutate(
+    percent = 100 * n / sum(n),
+
+    response_label = factor(
+      if_else(training_needs == "yes", "Yes", "No"),
+      levels = c("Yes", "No")
+    ),
+
+    pct_label = sprintf(
+      "%.1f%%\n(n = %s)",
+      percent,
+      n
+    )
+  )
+
+# Total valid Q37 respondents
+n_training_respondents <- sum(training_needs_summary$n)
+
+```
+
+
+```{r training_theme_barplot, echo=F}
+# Create horizontal bar chart
+# Training Needs by Theme
+training_themes_bar <- ggplot(
+  training_theme_count,
+  aes(
+    x = reorder(theme, percentage),
+    y = percentage,
+    fill = percentage
+  )
+) +
+
+  geom_col(width = 0.75) +
+
+  geom_text(
+    aes(label = pct_label),
+    hjust = -0.1,
+    size = 3.1
+  ) +
+
+  scale_fill_distiller(
+    palette = viz_sequential,
+    direction = 1
+  ) +
+
+  scale_x_discrete(
+    labels = function(x) {
+      stringr::str_wrap(x, width = 25)
+    }
+  ) +
+
+  scale_y_continuous(
+    breaks = scales::breaks_width(10),
+    labels = scales::label_number(suffix = "%"),
+    expand = expansion(mult = c(0, 0.25))
+  ) +
+
+  coord_flip(clip = "off") +
+
+  labs(
+    title = "Training Needs by Theme",
+    subtitle = paste0(
+      "Themes identified from free-text responses (N = ",
+      n_training_respondents,
+      ")"
+    ),
+    x = NULL,
+    y = "% of respondents reporting each theme",
+    caption = paste(
+      "Multiple themes permitted per respondent.",
+      "Percentages may sum to more than 100%."
+    )
+  ) +
+
+  theme_policy(base_size = 12) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 12
+    ),
+    axis.ticks = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    plot.caption = element_text(
+      size = 9,
+      color = "grey40",
+      hjust = 0
+    )
+  )
+
+# Display figure
+training_themes_bar
 
 ```
